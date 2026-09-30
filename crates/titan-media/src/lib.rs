@@ -194,8 +194,14 @@ impl Video {
         None
     }
     pub fn reset(&self) -> Result<()> {
-        self.pipeline.set_state(gst::State::Null)?;
-        self.pipeline.set_state(gst::State::Playing)?;
+        ensure!(
+            self.pipeline.send_event(gst::event::FlushStart::new()),
+            "video flush start rejected"
+        );
+        ensure!(
+            self.pipeline.send_event(gst::event::FlushStop::new(true)),
+            "video flush stop rejected"
+        );
         Ok(())
     }
 }

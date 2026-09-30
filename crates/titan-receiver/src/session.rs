@@ -162,6 +162,8 @@ async fn media_worker(
     let mut fallback_anchor: Option<(u64, u64)> = None;
     let mut video_anchor: Option<(u64, u64)> = None;
     let mut active_config = None;
+    let mut active_codec: Option<String> = None;
+    let mut active_channels = None;
     let mut idr_at = Instant::now() - Duration::from_secs(1);
     loop {
         let unit = tokio::select! {unit=input.recv()=>match unit{Some(u)=>u,None=>break},_=tokio::time::sleep(Duration::from_millis(250))=>{if ctx.cancelled.load(Ordering::Acquire){break}continue}};
@@ -180,9 +182,15 @@ async fn media_worker(
             continue;
         }
         if active_config != Some(config.config_id) {
-            video = None;
-            mic = None;
+            if active_codec.as_deref() != Some(&config.codec) {
+                video = None;
+            }
+            if active_channels != Some(config.audio_channels) {
+                mic = None;
+            }
             opus = None;
+            active_codec = Some(config.codec.clone());
+            active_channels = Some(config.audio_channels);
             video_sequence = None;
             audio_sequence = None;
             video_anchor = None;
@@ -230,7 +238,8 @@ async fn media_worker(
                 }
                 continue;
             }
-            if video.is_none() {
+            let decoder_created = video.is_none();
+            if decoder_created {
                 let v = Video::new(
                     &config.codec,
                     options.preview,
@@ -259,13 +268,16 @@ async fn media_worker(
                     options.webcam.as_deref(),
                     true,
                 )?);
+                ctx.stats.lock().unwrap().decoder = video.as_ref().unwrap().decoder.clone();
                 video_anchor = None;
                 waiting_idr = true;
                 ctx.request("RequestIDR", serde_json::json!({"reason":"decoder_reset"}));
                 continue;
             }
             if waiting_idr {
-                v.reset()?;
+                if !decoder_created {
+                    v.reset()?;
+                }
                 video_anchor = None;
                 ctx.stats.lock().unwrap().recoveries += 1;
                 waiting_idr = false;
@@ -294,6 +306,8 @@ async fn media_worker(
             }
             if mic.is_none() {
                 mic = Some(Microphone::new(config.audio_channels)?);
+            }
+            if opus.is_none() {
                 opus = Some(AudioDecoder::new(config.audio_channels)?);
             }
             let frames = (unit.header.duration as u64 * 48_000 / 1_000_000_000) as u32;

@@ -1,0 +1,607 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		044616C0A66AAC30A26035E1 /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CAF85F01D7F1390662D100 /* CaptureEngine.swift */; };
+		1678134B118AB8089E1FFA2E /* media-header-v1.bin in Resources */ = {isa = PBXBuildFile; fileRef = 34CE3AC20393421309BC7F40 /* media-header-v1.bin */; };
+		1E69C62DC7BDE2DD3CDCDD3C /* Opus.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */; };
+		269B9B16E6180D0AABCB5DEA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33909874E770FBE95ACCC883 /* ContentView.swift */; };
+		274793FE4C950F1D1B94DFF2 /* Protocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD6816ACE62FEA6C1FF21F7 /* Protocol.swift */; };
+		27D17E1E1834EC3C28B9AA9B /* AudioPacketizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B09A7DF933344DCD5E1E4E1 /* AudioPacketizer.swift */; };
+		30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */; };
+		4859F91094EBF4E45D814DF6 /* X509 in Frameworks */ = {isa = PBXBuildFile; productRef = 64D5655BFB1A31B4C31FCD69 /* X509 */; };
+		5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */; };
+		61AE0920BF76B13696797E31 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9E0BC8A4307531321AFFFE07 /* Assets.xcassets */; };
+		7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */; };
+		98AF9B8A5883576DC188DBE3 /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48AF31ED2B353357898EF901 /* Identity.swift */; };
+		AC881E97AB28962335278ACB /* DatagramSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8414700934BCB25DEAD7168 /* DatagramSender.swift */; };
+		BFFBD9F3B524A964CCDE78AA /* StreamCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617F8432D0EEC416332C2749 /* StreamCoordinator.swift */; };
+		CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = BE76869FB8D62921E701E9E6 /* OpusBridge.c */; };
+		CCE754E8884C2293AEF6077C /* SwiftASN1 in Frameworks */ = {isa = PBXBuildFile; productRef = A49090BE473C85A1B3E338D0 /* SwiftASN1 */; };
+		F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D770EFE1F4A252B80822AC9 /* Connections.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2E10F2D0955C71D577A35B4D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 515ECA14891865A539D5F783 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 41EDE6FDC2B260C1F7D9E532;
+			remoteInfo = TitanCam;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0B09A7DF933344DCD5E1E4E1 /* AudioPacketizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPacketizer.swift; sourceTree = "<group>"; };
+		33909874E770FBE95ACCC883 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		34CE3AC20393421309BC7F40 /* media-header-v1.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "media-header-v1.bin"; sourceTree = "<group>"; };
+		3D3794F46CF93AFC94840CA5 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		48AF31ED2B353357898EF901 /* Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity.swift; sourceTree = "<group>"; };
+		49C17444C1BD0C7340CA893C /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		52CAF85F01D7F1390662D100 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
+		59E337ED09770B2B3DCB968B /* TitanCamTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TitanCamTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		617F8432D0EEC416332C2749 /* StreamCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamCoordinator.swift; sourceTree = "<group>"; };
+		7D770EFE1F4A252B80822AC9 /* Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connections.swift; sourceTree = "<group>"; };
+		8ECC60A3069787EA13519637 /* TitanCam.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TitanCam.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitanCamApp.swift; sourceTree = "<group>"; };
+		9AD6816ACE62FEA6C1FF21F7 /* Protocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocol.swift; sourceTree = "<group>"; };
+		9E0BC8A4307531321AFFFE07 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A82B2542E1BA5C51E1FB9EB3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoEncoder.swift; sourceTree = "<group>"; };
+		BE76869FB8D62921E701E9E6 /* OpusBridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OpusBridge.c; sourceTree = "<group>"; };
+		D5F945670A515CE3EC5B0576 /* OpusBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpusBridge.h; sourceTree = "<group>"; };
+		DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolTests.swift; sourceTree = "<group>"; };
+		E8414700934BCB25DEAD7168 /* DatagramSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatagramSender.swift; sourceTree = "<group>"; };
+		EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Opus.xcframework; path = ../build/Opus.xcframework; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E2873B9C4122FFC206584A84 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4859F91094EBF4E45D814DF6 /* X509 in Frameworks */,
+				CCE754E8884C2293AEF6077C /* SwiftASN1 in Frameworks */,
+				1E69C62DC7BDE2DD3CDCDD3C /* Opus.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		030FE4DE589D661CA1D34F3E /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				0B09A7DF933344DCD5E1E4E1 /* AudioPacketizer.swift */,
+				52CAF85F01D7F1390662D100 /* CaptureEngine.swift */,
+				BE76869FB8D62921E701E9E6 /* OpusBridge.c */,
+				D5F945670A515CE3EC5B0576 /* OpusBridge.h */,
+				B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		51F7B50460B1F476E70CF61C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				9AD6816ACE62FEA6C1FF21F7 /* Protocol.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		68AE49B29A2803CCAFE920A3 /* TitanCamTests */ = {
+			isa = PBXGroup;
+			children = (
+				3D3794F46CF93AFC94840CA5 /* .gitkeep */,
+				DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */,
+			);
+			path = TitanCamTests;
+			sourceTree = "<group>";
+		};
+		7B49AA2CAACE4EB5DA38A5F5 = {
+			isa = PBXGroup;
+			children = (
+				D1B4169740C539D1A09BE5B0 /* TitanCam */,
+				8F6E5062682755B8AF364E29 /* TitanCam */,
+				68AE49B29A2803CCAFE920A3 /* TitanCamTests */,
+				CD7374BE479E6EE42C1873A7 /* Frameworks */,
+				9C655FA5C83D0F96972CDB4F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8F6E5062682755B8AF364E29 /* TitanCam */ = {
+			isa = PBXGroup;
+			children = (
+				FEA81F5BCC07F53FEE25D27F /* protocol */,
+			);
+			name = TitanCam;
+			path = ..;
+			sourceTree = "<group>";
+		};
+		9C655FA5C83D0F96972CDB4F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8ECC60A3069787EA13519637 /* TitanCam.app */,
+				59E337ED09770B2B3DCB968B /* TitanCamTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B044F5A85ED870EE3EAE71AF /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				33909874E770FBE95ACCC883 /* ContentView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		CA17C7B075BB891F45748389 /* Streaming */ = {
+			isa = PBXGroup;
+			children = (
+				7D770EFE1F4A252B80822AC9 /* Connections.swift */,
+				E8414700934BCB25DEAD7168 /* DatagramSender.swift */,
+				617F8432D0EEC416332C2749 /* StreamCoordinator.swift */,
+			);
+			path = Streaming;
+			sourceTree = "<group>";
+		};
+		CD7374BE479E6EE42C1873A7 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D1B4169740C539D1A09BE5B0 /* TitanCam */ = {
+			isa = PBXGroup;
+			children = (
+				49C17444C1BD0C7340CA893C /* .gitkeep */,
+				9E0BC8A4307531321AFFFE07 /* Assets.xcassets */,
+				A82B2542E1BA5C51E1FB9EB3 /* Info.plist */,
+				95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */,
+				030FE4DE589D661CA1D34F3E /* Capture */,
+				51F7B50460B1F476E70CF61C /* Models */,
+				F111552FC9541913699064B7 /* Security */,
+				CA17C7B075BB891F45748389 /* Streaming */,
+				B044F5A85ED870EE3EAE71AF /* Views */,
+			);
+			path = TitanCam;
+			sourceTree = "<group>";
+		};
+		F111552FC9541913699064B7 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				48AF31ED2B353357898EF901 /* Identity.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		FEA81F5BCC07F53FEE25D27F /* protocol */ = {
+			isa = PBXGroup;
+			children = (
+				34CE3AC20393421309BC7F40 /* media-header-v1.bin */,
+			);
+			path = protocol;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		41EDE6FDC2B260C1F7D9E532 /* TitanCam */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A8F7CCD81413079397EC1E3 /* Build configuration list for PBXNativeTarget "TitanCam" */;
+			buildPhases = (
+				AF031F7DC71D2F047E1C374B /* Sources */,
+				399C5763072C1D04F4DC66D6 /* Resources */,
+				E2873B9C4122FFC206584A84 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TitanCam;
+			packageProductDependencies = (
+				64D5655BFB1A31B4C31FCD69 /* X509 */,
+				A49090BE473C85A1B3E338D0 /* SwiftASN1 */,
+			);
+			productName = TitanCam;
+			productReference = 8ECC60A3069787EA13519637 /* TitanCam.app */;
+			productType = "com.apple.product-type.application";
+		};
+		FFEB8602A593A854BE533A64 /* TitanCamTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 77393DA6CCF500168F0B4B9B /* Build configuration list for PBXNativeTarget "TitanCamTests" */;
+			buildPhases = (
+				1D3571D3C0240DD1B00BAE8F /* Sources */,
+				58DF3DD49BFF4110D75F852F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				91C4ADF0F6D7D3D14B20D15C /* PBXTargetDependency */,
+			);
+			name = TitanCamTests;
+			packageProductDependencies = (
+			);
+			productName = TitanCamTests;
+			productReference = 59E337ED09770B2B3DCB968B /* TitanCamTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		515ECA14891865A539D5F783 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 96B8CBC23DDF663520B6487C /* Build configuration list for PBXProject "TitanCam" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7B49AA2CAACE4EB5DA38A5F5;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5D805A9C4119F8998F2655C4 /* XCRemoteSwiftPackageReference "swift-asn1" */,
+				22C72CDDFE8DB6EAC4090653 /* XCRemoteSwiftPackageReference "swift-certificates" */,
+				3E2265AFB02647400289B19E /* XCRemoteSwiftPackageReference "swift-crypto" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9C655FA5C83D0F96972CDB4F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				41EDE6FDC2B260C1F7D9E532 /* TitanCam */,
+				FFEB8602A593A854BE533A64 /* TitanCamTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		399C5763072C1D04F4DC66D6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				61AE0920BF76B13696797E31 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		58DF3DD49BFF4110D75F852F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1678134B118AB8089E1FFA2E /* media-header-v1.bin in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1D3571D3C0240DD1B00BAE8F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AF031F7DC71D2F047E1C374B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27D17E1E1834EC3C28B9AA9B /* AudioPacketizer.swift in Sources */,
+				044616C0A66AAC30A26035E1 /* CaptureEngine.swift in Sources */,
+				F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */,
+				269B9B16E6180D0AABCB5DEA /* ContentView.swift in Sources */,
+				AC881E97AB28962335278ACB /* DatagramSender.swift in Sources */,
+				98AF9B8A5883576DC188DBE3 /* Identity.swift in Sources */,
+				CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */,
+				274793FE4C950F1D1B94DFF2 /* Protocol.swift in Sources */,
+				BFFBD9F3B524A964CCDE78AA /* StreamCoordinator.swift in Sources */,
+				30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */,
+				5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		91C4ADF0F6D7D3D14B20D15C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 41EDE6FDC2B260C1F7D9E532 /* TitanCam */;
+			targetProxy = 2E10F2D0955C71D577A35B4D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		01A3E51E31C1875D96C1F186 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ashrafmostafasec.titancam;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		137ABF5349350929F615DE32 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../build\"",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TitanCam/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = TitanCam/Capture/OpusBridge.h;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4056E4D29B1220217F0F56BA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../build\"",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TitanCam/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = TitanCam/Capture/OpusBridge.h;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		59171511A96ADC29B2BCCA4F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TitanCam.app/TitanCam";
+			};
+			name = Release;
+		};
+		C0CDED08674AEA0E7928FCCD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ashrafmostafasec.titancam;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		DB2F948F728FD6BD698112C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TitanCam.app/TitanCam";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		77393DA6CCF500168F0B4B9B /* Build configuration list for PBXNativeTarget "TitanCamTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB2F948F728FD6BD698112C6 /* Debug */,
+				59171511A96ADC29B2BCCA4F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7A8F7CCD81413079397EC1E3 /* Build configuration list for PBXNativeTarget "TitanCam" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				137ABF5349350929F615DE32 /* Debug */,
+				4056E4D29B1220217F0F56BA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		96B8CBC23DDF663520B6487C /* Build configuration list for PBXProject "TitanCam" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01A3E51E31C1875D96C1F186 /* Debug */,
+				C0CDED08674AEA0E7928FCCD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		22C72CDDFE8DB6EAC4090653 /* XCRemoteSwiftPackageReference "swift-certificates" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-certificates.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.9.0;
+			};
+		};
+		3E2265AFB02647400289B19E /* XCRemoteSwiftPackageReference "swift-crypto" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-crypto.git";
+			requirement = {
+				kind = exactVersion;
+				version = 3.12.3;
+			};
+		};
+		5D805A9C4119F8998F2655C4 /* XCRemoteSwiftPackageReference "swift-asn1" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-asn1.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.3.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		64D5655BFB1A31B4C31FCD69 /* X509 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 22C72CDDFE8DB6EAC4090653 /* XCRemoteSwiftPackageReference "swift-certificates" */;
+			productName = X509;
+		};
+		A49090BE473C85A1B3E338D0 /* SwiftASN1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5D805A9C4119F8998F2655C4 /* XCRemoteSwiftPackageReference "swift-asn1" */;
+			productName = SwiftASN1;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 515ECA14891865A539D5F783 /* Project object */;
+}

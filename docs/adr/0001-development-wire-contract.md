@@ -50,3 +50,9 @@ fixed; adaptive jitter/repair/FEC and calibrated drift fitting are not enabled.
 Native datagram-flow and timeout API semantics were checked against
 [Apple QUIC options](https://developer.apple.com/documentation/network/nwprotocolquic/options).
 Rust↔Rust localhost QUIC tests do not establish Apple↔Quinn physical-device interoperability.
+
+Decoder recovery flushes buffered compressed data while retaining the live decoder/GPU
+context. Same-codec reconfiguration reuses the pipeline; same-channel audio retains its
+PipeWire source node. Destroying those resources on every bitrate update adds cold-start
+delay and can disconnect microphone consumers. Codec state/reference tracking still resets
+at the configuration barrier. CPU fallback telemetry names the decoder actually selected.

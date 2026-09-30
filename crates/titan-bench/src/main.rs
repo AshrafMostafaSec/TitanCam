@@ -11,6 +11,8 @@ use titan_transport::{Identity, read_control, write_control};
 use tokio::io::{AsyncBufReadExt, BufReader};
 #[derive(Parser)]
 struct Args {
+    #[arg(long)]
+    hardware: bool,
     #[arg(long, default_value = "target/release/titan-receiver")]
     receiver: PathBuf,
 }
@@ -56,8 +58,12 @@ async fn main() -> Result<()> {
         hex::encode(titan_transport::random::<8>())
     )));
     let phone = Identity::load(directory.0.join("phone"))?;
-    let mut process = tokio::process::Command::new(&args.receiver)
-        .args(["run", "--pairing", "--software", "--mute"])
+    let mut command = tokio::process::Command::new(&args.receiver);
+    command.args(["run", "--pairing", "--mute"]);
+    if !args.hardware {
+        command.arg("--software");
+    }
+    let mut process = command
         .env("XDG_STATE_HOME", directory.0.join("state"))
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::inherit())
@@ -203,6 +209,12 @@ async fn main() -> Result<()> {
         latest["recoveries"].as_u64().unwrap_or(0) >= 3,
         "recovery/reconfiguration not exercised"
     );
+    if args.hardware {
+        ensure!(
+            latest["decoder"].as_str() == Some("nvh264dec"),
+            "hardware pipeline fell back to CPU"
+        );
+    }
     println!(
         "{}",
         serde_json::json!({"synthetic_only":true,"transport":"TLS+QUIC localhost","generated_frames":fixture.len(),"sent_frames":sent,"intentional_reference_loss":1,"configurations":2,"idr_requests":idr_requests,"receiver":latest,"physical_iphone_test":false})

@@ -26,3 +26,7 @@ qualification, deadline-aware repair/FEC, recording, full calibrated drift model
 clock uncertainty display, broad fuzzing, combined binary/system/iOS SBOM review and clean-host installation
 qualification. These are not presented as verified features. Maximum 4K60/HEVC remains
 experimental until the corresponding hardware measurements pass.
+
+GitHub macOS/Xcode device compilation and all seven simulator tests passed on the
+verified preview source. The generated Xcode project/shared scheme and Package.resolved
+are committed. Latest head CI reruns confirm subsequent receiver changes.
