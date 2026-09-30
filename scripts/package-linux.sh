@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/env.sh
 cargo build --release --locked -p titan-receiver
-version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' crates/titan-receiver/Cargo.toml | head -1)"
+version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
 staging="build/package-root"
 rm -rf "$staging"
 mkdir -p "$staging/usr/bin" "$staging/usr/share/doc/titancam" "$staging/DEBIAN" build/package
