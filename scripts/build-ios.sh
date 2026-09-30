@@ -15,7 +15,7 @@ common=(-project ios/TitanCam.xcodeproj -scheme TitanCam -configuration Release 
 case "$mode" in
   simulator)
     destination="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')"
-    xcodebuild "${common[@]}" -destination "id=$destination" test -resultBundlePath build/SimulatorTests.xcresult
+    xcodebuild "${common[@]}" -destination "id=$destination" test ENABLE_TESTABILITY=YES -resultBundlePath build/SimulatorTests.xcresult
     ;;
   device-unsigned)
     xcodebuild "${common[@]}" -sdk iphoneos -destination 'generic/platform=iOS' build

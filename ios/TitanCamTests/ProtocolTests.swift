@@ -2,6 +2,12 @@ import XCTest
 import CryptoKit
 @testable import TitanCam
 final class ProtocolTests: XCTestCase {
+    func testKeychainIdentityPersists() throws {
+        let first = try DeviceIdentity(); let second = try DeviceIdentity()
+        XCTAssertEqual(first.publicKey, second.publicKey)
+        XCTAssertEqual(first.fingerprint, second.fingerprint)
+        XCTAssertEqual(first.certificate, second.certificate)
+    }
     func testCommandsRequireAuthentication() {
         for command in ["Configure", "Start", "StreamingReady", "ConfigureApplied", "MediaReady", "Feedback", "ClockPing"] { XCTAssertFalse(ControlMessage(command, session: String(repeating: "0", count: 32)).allowedBeforeAuthentication) }
         XCTAssertTrue(ControlMessage("AuthOk", session: String(repeating: "0", count: 32)).allowedBeforeAuthentication)

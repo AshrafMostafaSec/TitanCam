@@ -10,7 +10,7 @@ SwiftUI foreground UI; unsigned iOS GitHub build; Linux package and GitHub Pages
 
 Locally passed: Rust format/lint and eight protocol/security/drift tests; RTX 4050 actual
 H.264 hardware decode probe with 30 generated frames. A PipeWire source was created;
-consumer playback and measured A/V sync have not yet been qualified. CI results appear
+a generated tone reached a real PipeWire consumer. Physical-camera A/V sync has not yet been qualified. CI results appear
 in GitHub Actions. Do not infer physical-phone success from source or compilation.
 
 Required next hardware steps, after local signing/install:
