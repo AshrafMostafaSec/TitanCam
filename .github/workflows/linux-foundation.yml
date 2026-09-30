@@ -25,7 +25,7 @@ jobs:
         run: ./scripts/check.sh
       - name: Shared wire fixture
         run: ./scripts/verify-protocol-fixtures.sh
-      - name: Synthetic encrypted media and recovery
+      - name: Synthetic plain local media and recovery
         run: ./target/release/titan-bench > build-synthetic-report.json
       - name: Package receiver
         run: ./scripts/package-linux.sh

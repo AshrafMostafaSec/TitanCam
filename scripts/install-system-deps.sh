@@ -6,7 +6,7 @@ packages=(build-essential dpkg-dev cmake ninja-build pkg-config curl ca-certific
   libgstreamer-plugins-base1.0-dev libpipewire-0.3-dev libusbmuxd-dev
   libopus-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
   gstreamer1.0-plugins-bad gstreamer1.0-libav libusbmuxd-tools
-  usbmuxd libimobiledevice-utils v4l-utils)
+  usbmuxd libimobiledevice-utils v4l-utils avahi-utils)
 sudo apt-get update
 if apt-cache show libimobiledevice-glue-dev >/dev/null 2>&1; then packages+=(libimobiledevice-glue-dev); fi
 sudo apt-get install --yes --no-install-recommends "${packages[@]}"

@@ -1,4 +1,4 @@
-//! Synthetic peer: real TLS/QUIC, generated H.264 GOP, intentional reference loss.
+//! Synthetic peer: plain TCP/UDP, generated H.264 GOP, intentional reference loss.
 use anyhow::{Context, Result, ensure};
 use clap::Parser;
 use gstreamer::{self as gst, prelude::*};
@@ -7,12 +7,15 @@ use std::{
     time::{Duration, Instant},
 };
 use titan_protocol::{Control, MediaHeader, StreamConfig};
-use titan_transport::{Identity, read_control, write_control};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use titan_transport::{read_control, write_control};
 #[derive(Parser)]
 struct Args {
     #[arg(long)]
     hardware: bool,
+    #[arg(long)]
+    preview: bool,
+    #[arg(long)]
+    webcam: Option<String>,
     #[arg(long, default_value = "target/release/titan-receiver")]
     receiver: PathBuf,
 }
@@ -51,15 +54,19 @@ fn frames() -> Result<Vec<(Vec<u8>, bool)>> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    let _ = rustls::crypto::ring::default_provider().install_default();
     let fixture = tokio::task::spawn_blocking(frames).await??;
     let directory = Temp(std::env::temp_dir().join(format!(
         "titancam-bench-{}",
         hex::encode(titan_transport::random::<8>())
     )));
-    let phone = Identity::load(directory.0.join("phone"))?;
     let mut command = tokio::process::Command::new(&args.receiver);
-    command.args(["run", "--pairing", "--mute"]);
+    command.args(["local", "--bind", "127.0.0.1", "--no-usb", "--mute"]);
+    if args.preview {
+        command.arg("--preview");
+    }
+    if let Some(webcam) = &args.webcam {
+        command.args(["--webcam", webcam]);
+    }
     if !args.hardware {
         command.arg("--software");
     }
@@ -69,63 +76,36 @@ async fn main() -> Result<()> {
         .stderr(std::process::Stdio::inherit())
         .kill_on_drop(true)
         .spawn()?;
-    let mut lines = BufReader::new(process.stdout.take().unwrap()).lines();
-    let uri = tokio::time::timeout(Duration::from_secs(5), async {
+    let mut control = tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            let line = lines
-                .next_line()
-                .await?
-                .context("receiver stopped before pairing")?;
-            if line.starts_with("titancam://pair?") {
-                return Ok::<_, anyhow::Error>(line);
+            if let Ok(stream) = tokio::net::TcpStream::connect("127.0.0.1:49160").await {
+                break stream;
             }
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
     })
-    .await??;
-    // URI contains a temporary secret: consume it internally, never log it.
-    let fields: std::collections::HashMap<_, _> = uri
-        .split_once('?')
-        .unwrap()
-        .1
-        .split('&')
-        .filter_map(|s| s.split_once('='))
-        .collect();
-    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(
-        titan_transport::tls_client(fields["cert"], b"titancam-control/1")?,
-    ));
-    let mut control = connector
-        .connect(
-            rustls::pki_types::ServerName::try_from("titancam.local")?,
-            tokio::net::TcpStream::connect("127.0.0.1:49160").await?,
-        )
-        .await?;
+    .await?;
+    control.set_nodelay(true)?;
     let hello = read_control(&mut control).await?;
     ensure!(
-        hello.kind == "Hello" && hello.body["pair_token"].as_str() == Some(""),
-        "server leaked pairing secret"
+        hello.kind == "Hello"
+            && hello.body["mode"] == "plain"
+            && hello.body["transport_version"] == 2,
+        "wrong receiver transport"
     );
     let sid: [u8; 16] = hex::decode(&hello.session_id)?.try_into().unwrap();
-    let nonce: [u8; 32] = hex::decode(hello.body["nonce"].as_str().unwrap())?
-        .try_into()
-        .unwrap();
-    let public: [u8; 32] = hex::decode(hello.body["receiver_public"].as_str().unwrap())?
-        .try_into()
-        .unwrap();
     let token: [u8; 32] = hex::decode(hello.body["media_token"].as_str().unwrap())?
         .try_into()
         .unwrap();
-    write_control(&mut control,&Control::new("AuthProof",&hello.session_id,serde_json::json!({"phone_public":hex::encode(phone.public()),"signature":titan_transport::sign(&phone.signing,1,&phone.public(),&public,&nonce,&sid),"pair_token":fields["token"]}))).await?;
-    let auth = read_control(&mut control).await?;
-    ensure!(auth.kind == "AuthOk", "authentication rejected");
-    titan_transport::verify(
-        &public,
-        auth.body["signature"].as_str().unwrap(),
-        2,
-        &phone.public(),
-        &public,
-        &nonce,
-        &sid,
-    )?;
+    write_control(
+        &mut control,
+        &Control::new(
+            "HelloAck",
+            &hello.session_id,
+            serde_json::json!({"transport_version":2}),
+        ),
+    )
+    .await?;
     let requested = read_control(&mut control).await?;
     ensure!(requested.kind == "Configure", "missing configuration");
     let mut config: StreamConfig = serde_json::from_value(requested.body)?;
@@ -143,16 +123,11 @@ async fn main() -> Result<()> {
     .await?;
     let ready = read_control(&mut control).await?;
     ensure!(ready.kind == "MediaReady", "missing media-ready barrier");
-    let mut endpoint = quinn::Endpoint::client("127.0.0.1:0".parse()?)?;
-    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(titan_transport::tls_client(
-        fields["cert"],
-        b"titancam-media/1",
-    )?)?;
-    endpoint.set_default_client_config(quinn::ClientConfig::new(std::sync::Arc::new(crypto)));
-    let connection = endpoint
-        .connect("127.0.0.1:49161".parse()?, "titancam.local")?
+    let connection = tokio::net::UdpSocket::bind("127.0.0.1:0").await?;
+    connection.connect("127.0.0.1:49161").await?;
+    connection
+        .send(&titan_protocol::media_binding(sid, 1, token))
         .await?;
-    connection.send_datagram(titan_protocol::media_binding(sid, 1, token).into())?;
     let origin = Instant::now();
     let now = || origin.elapsed().as_nanos() as u64;
     loop {
@@ -197,11 +172,10 @@ async fn main() -> Result<()> {
                           _=heartbeat.tick()=>{write_control(&mut writer,&Control::new("Heartbeat",&hello.session_id,serde_json::json!({}))).await?;}
                           _=tick.tick()=>{if pending_config{continue}
         if index==fixture.len(){if finished_at.lock().unwrap().is_none(){*finished_at.lock().unwrap()=Some(Instant::now());}continue}let i=index;index+=1;if i==5{continue}
-                if i==60&&config.config_id==1{config.config_id=2;pending_config=true;index-=1;write_control(&mut writer,&Control::new("ConfigureAck",&hello.session_id,serde_json::to_value(&config)?)).await?;continue}let(data,independent)=&fixture[i];let pts=now();let count=data.len().div_ceil(1036);for (n,chunk) in data.chunks(1036).enumerate(){let h=MediaHeader{kind:1,flags:u16::from(*independent),session:sid,epoch:1,config:config.config_id,sequence:i as u64,pts,duration:33_333_333,unit_len:data.len()as u32,index:n as u16,count:count as u16,offset:(n*1036)as u32};let mut packet=h.encode().to_vec();packet.extend(chunk);connection.send_datagram(packet.into())?;}sent+=1;}
+                if i==60&&config.config_id==1{config.config_id=2;pending_config=true;index-=1;write_control(&mut writer,&Control::new("ConfigureAck",&hello.session_id,serde_json::to_value(&config)?)).await?;continue}let(data,independent)=&fixture[i];let pts=now();let count=data.len().div_ceil(1036);for (n,chunk) in data.chunks(1036).enumerate(){let h=MediaHeader{kind:1,flags:u16::from(*independent),session:sid,epoch:1,config:config.config_id,sequence:i as u64,pts,duration:33_333_333,unit_len:data.len()as u32,index:n as u16,count:count as u16,offset:(n*1036)as u32};let mut packet=h.encode().to_vec();packet.extend(chunk);connection.send(&packet).await?;}sent+=1;}
                         }
     }
     read_task.abort();
-    connection.close(0u8.into(), b"benchmark complete");
     process.kill().await?;
     eprintln!("Synthetic receiver counters: {latest}");
     ensure!(idr_requests > 0, "reference loss did not request recovery");
@@ -217,7 +191,7 @@ async fn main() -> Result<()> {
     }
     println!(
         "{}",
-        serde_json::json!({"synthetic_only":true,"transport":"TLS+QUIC localhost","generated_frames":fixture.len(),"sent_frames":sent,"intentional_reference_loss":1,"configurations":2,"idr_requests":idr_requests,"receiver":latest,"physical_iphone_test":false})
+        serde_json::json!({"synthetic_only":true,"transport":"plain TCP+UDP localhost","generated_frames":fixture.len(),"sent_frames":sent,"intentional_reference_loss":1,"configurations":2,"idr_requests":idr_requests,"receiver":latest,"physical_iphone_test":false})
     );
     Ok(())
 }

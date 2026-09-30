@@ -1,6 +1,16 @@
 {
   "default_base_port": 43052,
-  "fallback_base_ports": [43062, 43072],
-  "roles": {"control": 0, "video": 1, "audio": 2},
-  "legacy_alpha1_base_port": 49152
+  "fallback_base_ports": [
+    43062,
+    43072
+  ],
+  "roles": {
+    "control": 0,
+    "video": 1,
+    "audio": 2,
+    "bootstrap": -1
+  },
+  "legacy_alpha1_base_port": 49152,
+  "transport_version": 2,
+  "metadata_max_bytes": 256
 }

@@ -1,0 +1,21 @@
+{
+  "transport_version": 2,
+  "mode": "plain",
+  "control_envelope_version": 1,
+  "media_header_version": 1,
+  "discovery": {
+    "type": "_titancam._tcp",
+    "txt": {
+      "v": "2",
+      "mode": "plain",
+      "host": "LAN IPv4",
+      "media": "49161"
+    }
+  },
+  "control_port": 49160,
+  "udp_port": 49161,
+  "hello_ack": "HelloAck",
+  "max_datagram": 1100,
+  "confidentiality": false,
+  "peer_authentication": false
+}

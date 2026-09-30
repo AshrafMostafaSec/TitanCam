@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Local desktop controller; never stores pairing credentials or records camera/audio."""
+"""Trusted LAN desktop controller with automatic discovery and cable bootstrap."""
 import fcntl
-import ipaddress
 import json
 import os
 from pathlib import Path
@@ -22,6 +21,8 @@ class Application(Gtk.Application):
         self.process = None
         self.generation = 0
         self.started = 0
+        self.gpu_at = 0
+        self.gpu_pending = False
         self.connect('activate', self.activate)
         self.connect('shutdown', lambda *_: self.stop())
 
@@ -38,7 +39,9 @@ class Application(Gtk.Application):
             self.quit()
             return
         self.window = Gtk.ApplicationWindow(application=self, title='TitanCam — Linux')
-        self.window.set_default_size(650, 700)
+        self.window.set_default_size(620, 460)
+        self.hold()
+        self.window.connect('close-request', self.hide_window)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for side in ('top', 'bottom', 'start', 'end'):
             getattr(box, 'set_margin_' + side)(22)
@@ -48,34 +51,11 @@ class Application(Gtk.Application):
         box.append(title)
         self.status = Gtk.Label(label='جاهز لاختبار الكاميرا والصوت', xalign=0, wrap=True)
         box.append(self.status)
-        self.mode = Gtk.DropDown.new_from_strings(['USB — الكابل', 'Wi-Fi — الشبكة المحلية'])
+        box.append(Gtk.Label(label='افتح TitanCam على الآيفون: اختر اسم الكمبيوتر على Wi-Fi،\nأو وصل الكابل واضغط Connect with USB. الاتصال يتم تلقائيًا.', xalign=0, wrap=True))
         self.profile = Gtk.DropDown.new_from_strings(['Saver — 720p30', 'Balanced — 1080p60', 'Maximum — 4K60 تجريبي'])
-        box.append(self.mode)
         box.append(self.profile)
-        self.usb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        self.usb.append(Gtk.Label(label='افتح تطبيق الآيفون واضغط Enable USB connection.\nأدخل القيم المعروضة في التطبيق؛ الرمز صالح لدقيقتين.', xalign=0, wrap=True))
-        self.pin = Gtk.Entry(placeholder_text='Certificate pin — بصمة الهاتف')
-        self.token = Gtk.Entry(placeholder_text='One-time token — رمز الاقتران')
-        self.token.set_visibility(False)
-        self.port = Gtk.SpinButton.new_with_range(1024, 65533, 1)
-        self.port.set_value(43052)
-        self.usb.append(self.pin)
-        self.usb.append(self.token)
-        row = Gtk.Box(spacing=8)
-        row.append(Gtk.Label(label='USB base port — كما يظهر على الهاتف'))
-        row.append(self.port)
-        self.usb.append(row)
-        box.append(self.usb)
-        self.wifi = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        self.wifi.append(Gtk.Label(label='وصل الهاتف والكمبيوتر بنفس الشبكة. بعد بدء المستقبل،\nامسح كود الاقتران بكاميرا الآيفون ثم اضغط Connect over Wi-Fi.', xalign=0, wrap=True))
-        self.address = Gtk.Entry(placeholder_text='عنوان الكمبيوتر داخل الشبكة')
-        try:
-            route = json.loads(subprocess.check_output(['ip', '-j', 'route', 'get', '1.1.1.1'], timeout=2))
-            self.address.set_text(route[0]['prefsrc'])
-        except (OSError, subprocess.SubprocessError, ValueError, KeyError, IndexError):
-            pass
-        self.wifi.append(self.address)
-        box.append(self.wifi)
+        self.network = Gtk.Label(xalign=0, wrap=True)
+        box.append(self.network)
         self.preview = Gtk.CheckButton(label='عرض الصورة على الكمبيوتر')
         self.preview.set_active(True)
         self.webcam = Gtk.CheckButton(label='تشغيل كاميرا TitanCam الافتراضية')
@@ -83,55 +63,48 @@ class Application(Gtk.Application):
         box.append(self.preview)
         box.append(self.webcam)
         buttons = Gtk.Box(spacing=10)
-        self.start_button = Gtk.Button(label='بدء الاتصال / تجديد الاقتران')
+        self.start_button = Gtk.Button(label='تشغيل / تطبيق الإعدادات')
         self.start_button.add_css_class('suggested-action')
         self.start_button.connect('clicked', self.start)
-        stop = Gtk.Button(label='إيقاف الاتصال')
+        stop = Gtk.Button(label='إيقاف المستقبل')
         stop.connect('clicked', lambda *_: self.stop())
         buttons.append(self.start_button)
         buttons.append(stop)
         box.append(buttons)
-        self.picture = Gtk.Picture()
-        self.picture.set_size_request(300, 300)
-        self.picture.set_can_shrink(True)
-        self.picture.set_visible(False)
-        box.append(self.picture)
-        self.pairing = Gtk.Label(xalign=0, wrap=True, selectable=True)
-        self.pairing.set_max_width_chars(70)
-        box.append(self.pairing)
+        quit_button = Gtk.Button(label='إغلاق TitanCam بالكامل')
+        quit_button.connect('clicked', lambda *_: self.quit())
+        buttons.append(quit_button)
         self.metrics = Gtk.Label(xalign=0, wrap=True)
         box.append(self.metrics)
-        self.mode.connect('notify::selected', self.mode_changed)
-        self.mode_changed()
-        GLib.timeout_add(500, self.refresh)
+        self.gpu = Gtk.Label(xalign=0, wrap=True)
+        box.append(self.gpu)
+        GLib.timeout_add(1000, self.refresh)
         self.window.present()
+        self.start()
 
-    def mode_changed(self, *_):
-        usb = self.mode.get_selected() == 0
-        self.usb.set_visible(usb)
-        self.wifi.set_visible(not usb)
-        self.picture.set_visible(False)
-        self.pairing.set_text('')
+    def hide_window(self, *_):
+        self.window.set_visible(False)
+        return True  # Receiver stays discoverable when its window is closed.
+
+    @staticmethod
+    def local_address():
+        try:
+            route = json.loads(subprocess.check_output(['ip', '-j', '-4', 'route', 'show', 'default'], timeout=2))
+            interface = route[0]['dev']
+            addresses = json.loads(subprocess.check_output(['ip', '-j', '-4', 'addr', 'show', 'dev', interface], timeout=2))
+            return next(x['local'] for d in addresses for x in d['addr_info'] if x.get('scope') == 'global')
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, IndexError, StopIteration):
+            return None
 
     def start(self, *_):
         profile = ['saver', 'balanced', 'maximum'][self.profile.get_selected()]
-        args = ['/usr/bin/titan-receiver']
-        if self.mode.get_selected() == 0:
-            pin = ''.join(self.pin.get_text().split()).replace(':', '').lower()
-            token = ''.join(self.token.get_text().split()).lower()
-            if not all(len(v) == 64 and all(c in '0123456789abcdef' for c in v) for v in (pin, token)):
-                self.status.set_text('انقل بصمة الهاتف ورمز الاقتران كاملين: 64 حرفًا لكل خانة.')
-                return
-            args += ['usb', '--phone-pin', pin, '--pair-token', token, '--usb-base-port', str(self.port.get_value_as_int())]
-        else:
-            try:
-                address = ipaddress.ip_address(self.address.get_text().strip())
-                if address.is_unspecified or address.is_loopback or address.is_multicast:
-                    raise ValueError()
-            except ValueError:
-                self.status.set_text('أدخل عنوان الكمبيوتر الصحيح داخل الشبكة المحلية.')
-                return
-            args += ['run', '--bind', str(address), '--advertise', str(address), '--pairing']
+        address = self.local_address()
+        # USB remains usable even when no Wi-Fi network is available.
+        args = [os.environ.get('TITANCAM_RECEIVER', '/usr/bin/titan-receiver'), 'local', '--bind', '0.0.0.0']
+        if address:
+            args += ['--advertise', address]
+        self.active_address = address
+        self.network.set_text('Wi-Fi: ' + address if address else 'USB جاهز — لا توجد شبكة Wi-Fi حاليًا')
         args += ['--profile', profile]
         if self.preview.get_active():
             args.append('--preview')
@@ -150,8 +123,7 @@ class Application(Gtk.Application):
         except OSError:
             self.status.set_text('تعذر تشغيل المستقبل؛ تحقق من تثبيت حزمة TitanCam.')
             return
-        self.token.set_text('')
-        self.status.set_text('المستقبل يعمل — انتظار اقتران الهاتف والصورة والصوت')
+        self.status.set_text('جاري تجهيز المستقبل…')
         self.metrics.set_text('')
         threading.Thread(target=self.read_output, args=(self.process, current), daemon=True).start()
 
@@ -170,11 +142,9 @@ class Application(Gtk.Application):
                     process.kill()
                     process.wait()
         if hasattr(self, 'status'):
-            self.status.set_text('تم إيقاف الاتصال')
+            self.status.set_text('تم إيقاف المستقبل')
             self.metrics.set_text('')
-            self.pairing.set_text('')
-            self.picture.set_visible(False)
-        (STATE / 'wifi-pairing.png').unlink(missing_ok=True)
+            self.gpu.set_text('')
 
     def read_output(self, process, current):
         path = STATE / 'desktop-test.log'
@@ -184,8 +154,9 @@ class Application(Gtk.Application):
         try:
             while data := process.stdout.readline(8192):
                 if data.startswith(b'titancam://pair?'):
-                    GLib.idle_add(self.show_pairing, data.decode('ascii').strip(), current)
                     continue  # Pairing secrets never enter diagnostic logs.
+                if b'listening on' in data:
+                    GLib.idle_add(self.ready, current)
                 if size + len(data) > 2 * 1024 * 1024:
                     output.close()
                     os.replace(path, STATE / 'desktop-test.previous.log')
@@ -198,43 +169,52 @@ class Application(Gtk.Application):
         finally:
             output.close()
 
-    def show_pairing(self, uri, current):
-        if current != self.generation:
-            return False
-        path = STATE / 'wifi-pairing.png'
-        fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
-        os.close(fd)
-        try:
-            subprocess.run(['qrencode', '-o', str(path), '-s', '6', '-m', '4'], input=uri.encode('ascii'), check=True, timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.picture.set_filename(str(path))
-            self.picture.set_visible(True)
-            self.pairing.set_text('امسح الكود بكاميرا الآيفون خلال دقيقتين، ثم اضغط Connect over Wi-Fi في TitanCam.\nإذا انتهت المهلة اضغط بدء الاتصال لتجديد الاقتران.')
-        except (OSError, subprocess.SubprocessError):
-            self.pairing.set_text(uri)
-        self.pairing_deadline = time.monotonic() + 120
+    def ready(self, current):
+        if current == self.generation:
+            self.status.set_text('الكمبيوتر جاهز — اختره على الآيفون أو اضغط اتصال USB')
         return False
 
     def ended(self, current, status):
         if current == self.generation:
             self.process = None
-            self.status.set_text('توقفت الجلسة؛ راجع رسالة التطبيق أو سجل الفحص المحلي.' if status else 'تم إيقاف الاتصال')
+            self.status.set_text('توقفت الجلسة؛ راجع رسالة التطبيق أو سجل الفحص المحلي.' if status else 'تم إيقاف المستقبل')
         return False
+
+    def query_gpu(self):
+        try:
+            values = subprocess.check_output(['nvidia-smi', '--query-gpu=utilization.gpu,utilization.decoder,power.draw', '--format=csv,noheader,nounits'], timeout=2, stderr=subprocess.DEVNULL).decode('ascii').splitlines()[0].split(',')
+            if len(values) == 3:
+                text = f'إنفيديا: استخدام عام {values[0].strip()}% · فك الفيديو {values[1].strip()}% · {values[2].strip()} وات'
+                GLib.idle_add(self.gpu.set_text, text)
+        except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+            pass
+        finally:
+            self.gpu_pending = False
 
     def refresh(self):
         if self.process and self.process.poll() is None:
+            address = self.local_address()
+            if address != self.active_address:
+                self.start()
+                return True
             path = STATE / 'stats.json'
             try:
-                if path.stat().st_mtime >= self.started and path.stat().st_size < 65536:
+                if path.stat().st_mtime >= self.started and time.time() - path.stat().st_mtime < 2.5 and path.stat().st_size < 65536:
                     data = json.loads(path.read_text())
                     video, audio = data.get('video', 0), data.get('audio', 0)
+                    if video and not self.gpu_pending and time.monotonic() - self.gpu_at >= 5:
+                        self.gpu_at = time.monotonic()
+                        self.gpu_pending = True
+                        threading.Thread(target=self.query_gpu, daemon=True).start()
                     if video and audio:
                         self.status.set_text('الصورة والصوت يصلان من الهاتف — ' + str(data.get('profile', '')))
                     self.metrics.set_text(f"فريمات الفيديو: {video} · حزم الصوت: {audio}\nDecoder: {data.get('decoder', '—')} · dropped: {data.get('dropped', 0)}")
             except (OSError, ValueError):
                 pass
-            if hasattr(self, 'pairing_deadline') and time.monotonic() >= self.pairing_deadline:
-                self.picture.set_visible(False)
-                (STATE / 'wifi-pairing.png').unlink(missing_ok=True)
+            if not path.exists() or time.time() - path.stat().st_mtime > 2.5:
+                self.status.set_text('الكمبيوتر جاهز — في انتظار اتصال الآيفون')
+                self.metrics.set_text('')
+                self.gpu.set_text('')
         return True
 
 Application().run(None)

@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 use titan_media::{AudioDecoder, Microphone, Video};
-use titan_protocol::{Control, Reassembler, StreamConfig, Unit};
+use titan_protocol::{Control, StreamConfig, Unit};
 use tokio::sync::mpsc;
 #[derive(Clone)]
 pub struct OutputOptions {
@@ -116,6 +116,7 @@ impl Context {
 pub fn create(
     config: StreamConfig,
     options: OutputOptions,
+    output_permit: tokio::sync::OwnedSemaphorePermit,
 ) -> (Arc<Context>, mpsc::Receiver<Control>) {
     let (commands, rx) = mpsc::channel(32);
     let (units, input) = mpsc::channel(16);
@@ -137,6 +138,8 @@ pub fn create(
     });
     let c = ctx.clone();
     tokio::spawn(async move {
+        // Release only after GStreamer and PipeWire resources have been dropped.
+        let _output_permit = output_permit;
         if let Err(e) = media_worker(c.clone(), input, options).await {
             tracing::error!("media stopped: {e}");
             c.live.store(false, Ordering::Release);
@@ -387,15 +390,6 @@ impl Drop for Lease {
             c.cancelled.store(true, Ordering::Release);
         }
     }
-}
-pub async fn datagrams(ctx: Arc<Context>, connection: quinn::Connection) -> Result<()> {
-    let mut config_id = ctx.config.lock().unwrap().config_id;
-    let mut assembler = Reassembler::new(ctx.id, 1, config_id, Duration::from_millis(60));
-    let mut tick = tokio::time::interval(Duration::from_millis(10));
-    loop {
-        tokio::select! {b=connection.read_datagram()=>{let b=b?;if titan_protocol::check_binding(&b,ctx.id,1,ctx.token){continue}ctx.stats.lock().unwrap().bytes+=b.len()as u64;let active=ctx.config.lock().unwrap().config_id;if active!=config_id{config_id=active;assembler=Reassembler::new(ctx.id,1,config_id,Duration::from_millis(60));}match assembler.push(&b,Instant::now()){Ok(Some(unit))=>{ctx.accept(unit)},Ok(None)=>(),Err(_)=>{ctx.stats.lock().unwrap().dropped+=1;}}},_=tick.tick()=>{if assembler.expire(Instant::now()){ctx.request("RequestIDR",serde_json::json!({"reason":"fragment_deadline"}));}ctx.stats.lock().unwrap().expired=assembler.expired;if ctx.cancelled.load(Ordering::Acquire){connection.close(0u8.into(),b"session ended");break}}}
-    }
-    Ok(())
 }
 #[cfg(test)]
 mod tests {

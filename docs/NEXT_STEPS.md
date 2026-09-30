@@ -1,32 +1,22 @@
-# Implementation status and hardware acceptance
+# Local v2 implementation and acceptance
 
-Implemented source: AVFoundation camera/mic capture; required VideoToolbox hardware
-H.264/HEVC; bounded encoder queues; Annex-B access units; PCM/Opus audio; native
-Network.framework TLS and QUIC datagrams; pinned TLS + Ed25519 mutual session identity;
-USB listeners/libusbmuxd connections; deadline-limited reassembly; clock exchange;
-NVDEC with CPU fallback; GStreamer preview/V4L2; native real-time PipeWire source;
-receiver telemetry; reconnect/backoff; thermal/network bitrate reduction; profile selection;
-SwiftUI foreground UI; unsigned iOS GitHub build; Linux package and GitHub Pages workflows.
+0.2.0 replaces authentication/TLS/QUIC with clear TCP control/USB and paced UDP media,
+as explicitly requested for the owner's trusted LAN. Bonjour and bounded USB metadata
+automatically discover endpoints. The iPhone UI is sender-only without preview;
+Linux starts immediately, controls profile/outputs and retains one active media owner.
+NVDEC decodes once; webcam uses native-size NV12 and optional GL preview is bounded.
 
-Locally passed: Rust format/lint and eight protocol/security/drift tests; RTX 4050 actual
-H.264 hardware decode probe with 30 generated frames. A PipeWire source was created;
-a generated tone reached a real PipeWire consumer. Physical-camera A/V sync has not yet been qualified. CI results appear
-in GitHub Actions. Do not infer physical-phone success from source or compilation.
+Verification is recorded in Actions and the release notes. Unit/synthetic/simulator
+checks are not a real camera test. Install the matching new IPA through local iLoader
+before attempting to connect; alpha.1 is incompatible.
 
-Required next hardware steps, after local signing/install:
-1. Probe effective camera format and hardware encoder on iPhone 13.
-2. USB saver 720p30 session for ten minutes, cable disconnect/reconnect and slow output.
-3. Confirm webcam + mic in OBS and browser; measure flash/click A/V skew.
-4. Validate native Network.framework QUIC DATAGRAM ↔ Quinn on actual iOS/network.
-5. Wi-Fi balanced session and documented loss/jitter/outage matrix.
-6. Each profile for 60 minutes, thermal/power/quality and external glass-to-glass latency.
+Required hardware qualification:
+1. Confirm actual phone capture, hardware encode and effective saver format.
+2. Ten-minute USB capture and unplug/reconnect, plus immediate Stop/Start.
+3. Discover the computer on Wi-Fi, stream and interrupt/reconnect the AP.
+4. Validate NVDEC, webcam and microphone in OBS/browser, flash/click A/V skew.
+5. Measure sustained profiles, GPU decode/power, thermal/battery and glass-to-glass delay.
 
-Remaining enhancements: mDNS/QR scanning, front-camera switching, larger color/HDR
-qualification, deadline-aware repair/FEC, recording, full calibrated drift model,
-clock uncertainty display, broad fuzzing, combined binary/system/iOS SBOM review and clean-host installation
-qualification. These are not presented as verified features. Maximum 4K60/HEVC remains
-experimental until the corresponding hardware measurements pass.
-
-GitHub macOS/Xcode device compilation and all seven simulator tests passed on the
-verified preview source. The generated Xcode project/shared scheme and Package.resolved
-are committed. Latest head CI reruns confirm subsequent receiver changes.
+Maximum 4K60/HEVC, exact latency, long-session stability and quality/energy targets
+remain unqualified. Repair/FEC, front camera/HDR, IPv6/interface selection and recording
+are later work. No media recording/upload is enabled.

@@ -15,11 +15,9 @@ final class DatagramSender {
     private var pacingMilliseconds = 2
     private var budget: Double = 2_000_000
     var dropped: (() -> Void)?
-    init(host: String, port: UInt16, pin: String, queue: DispatchQueue) {
+    init(host: String, port: UInt16, queue: DispatchQueue) {
         self.queue = queue
-        let options = NWProtocolQUIC.Options(alpn: ["titancam-media/1"]); options.isDatagram = true; options.maxDatagramFrameSize = 65_535; options.maxUDPPayloadSize = 1_200; options.idleTimeout = 5_000
-        Connections.pin(options.securityProtocolOptions, fingerprint: pin, queue: queue)
-        connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: NWParameters(quic: options))
+        connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: .udp)
     }
     func start(session: Data, token: Data, ready: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
         connection.stateUpdateHandler = { [weak self] state in guard let self else { return }; switch state { case .ready:

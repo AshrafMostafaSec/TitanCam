@@ -120,13 +120,24 @@ impl Video {
             cpu
         };
         let settings = if decoder == hardware {
-            " max-display-delay=0 discard-corrupted-frames=true"
+            " max-display-delay=0 num-output-surfaces=0 discard-corrupted-frames=true"
         } else {
             ""
         };
         let mut branches = String::new();
         if preview {
-            branches.push_str(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! videoconvert ! autovideosink sync=true ");
+            let sink = if decoder == hardware && gst::ElementFactory::find("glimagesink").is_some()
+            {
+                "glimagesink"
+            } else {
+                "autovideosink"
+            };
+            let conversion = if sink == "glimagesink" {
+                ""
+            } else {
+                "videoconvert ! "
+            };
+            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! {conversion}{sink} sync=true qos=true max-lateness=20000000 "));
         }
         if let Some(device) = webcam {
             ensure!(
@@ -135,7 +146,7 @@ impl Video {
                     && device.len() > 10,
                 "invalid V4L2 output device"
             );
-            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! videoscale ! videoconvert ! video/x-raw,format=YUY2,width=1920,height=1080 ! v4l2sink device={device} sync=true "));
+            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! videoconvert ! video/x-raw,format=NV12 ! v4l2sink device={device} sync=true "));
         }
         if branches.is_empty() {
             branches.push_str(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! fakesink sync=true ");

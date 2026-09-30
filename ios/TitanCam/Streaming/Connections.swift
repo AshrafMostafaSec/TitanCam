@@ -1,7 +1,5 @@
 import Foundation
 import Network
-import Security
-import CryptoKit
 final class FramedConnection {
     let connection: NWConnection
     let queue: DispatchQueue
@@ -21,18 +19,8 @@ final class FramedConnection {
     func close(_ error: Error? = nil) { guard !closed else { return }; closed = true; connection.cancel(); let callback = failure; failure = nil; receive = nil; connection.stateUpdateHandler = nil; callback?(error) }
 }
 enum Connections {
-    static func serverTLS(identity: DeviceIdentity, alpn: String) throws -> NWParameters { let tls = NWProtocolTLS.Options(); guard let secIdentity = sec_identity_create(identity.tls) else { throw CameraError.unavailable("TLS identity not available") }; sec_protocol_options_set_local_identity(tls.securityProtocolOptions, secIdentity); sec_protocol_options_set_min_tls_protocol_version(tls.securityProtocolOptions, .TLSv13); sec_protocol_options_add_tls_application_protocol(tls.securityProtocolOptions, alpn); let tcp = NWProtocolTCP.Options(); tcp.noDelay = true; let parameters = NWParameters(tls: tls, tcp: tcp); parameters.allowLocalEndpointReuse = true; return parameters }
-    static func pin(_ options: sec_protocol_options_t, fingerprint: String, queue: DispatchQueue) {
-        sec_protocol_options_set_min_tls_protocol_version(options, .TLSv13)
-        sec_protocol_options_set_verify_block(options, { _, trust, complete in
-            let secTrust = sec_trust_copy_ref(trust).takeRetainedValue()
-            guard let cert = SecTrustGetCertificateAtIndex(secTrust, 0) else { complete(false); return }
-            let bytes = SecCertificateCopyData(cert) as Data
-            guard Data(SHA256.hash(data: bytes)).hex == fingerprint else { complete(false); return }
-            // A local self-issued pinned cert is the explicit anchor; trust still checks certificate validity and usage.
-            SecTrustSetAnchorCertificates(secTrust, [cert] as CFArray); SecTrustSetAnchorCertificatesOnly(secTrust, true); SecTrustSetPolicies(secTrust, SecPolicyCreateBasicX509())
-            complete(SecTrustEvaluateWithError(secTrust, nil))
-        }, queue)
+    static func tcp() -> NWParameters {
+        let options = NWProtocolTCP.Options(); options.noDelay = true
+        return NWParameters(tls: nil, tcp: options)
     }
-    static func clientTLS(pin: String, queue: DispatchQueue) -> NWParameters { let tls = NWProtocolTLS.Options(); self.pin(tls.securityProtocolOptions, fingerprint: pin, queue: queue); sec_protocol_options_add_tls_application_protocol(tls.securityProtocolOptions, "titancam-control/1"); let tcp = NWProtocolTCP.Options(); tcp.noDelay = true; return NWParameters(tls: tls, tcp: tcp) }
 }

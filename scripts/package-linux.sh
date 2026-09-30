@@ -45,7 +45,7 @@ Section: video
 Priority: optional
 Architecture: $architecture
 Maintainer: Ashraf Mostafa <233173916+AshrafMostafaSec@users.noreply.github.com>
-Depends: $native_dependencies, python3-gi, gir1.2-gtk-4.0, qrencode, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav
+Depends: $native_dependencies, python3-gi, gir1.2-gtk-4.0, avahi-daemon, avahi-utils, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav
 Description: TitanCam encrypted iPhone camera receiver (development preview)
  Hardware streaming qualification is pending. NVIDIA drivers and the optional
  v4l2loopback kernel module are installed separately.

@@ -14,16 +14,14 @@
 		274793FE4C950F1D1B94DFF2 /* Protocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD6816ACE62FEA6C1FF21F7 /* Protocol.swift */; };
 		27D17E1E1834EC3C28B9AA9B /* AudioPacketizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B09A7DF933344DCD5E1E4E1 /* AudioPacketizer.swift */; };
 		30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */; };
-		4859F91094EBF4E45D814DF6 /* X509 in Frameworks */ = {isa = PBXBuildFile; productRef = 64D5655BFB1A31B4C31FCD69 /* X509 */; };
 		5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */; };
 		61AE0920BF76B13696797E31 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9E0BC8A4307531321AFFFE07 /* Assets.xcassets */; };
 		7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */; };
-		98AF9B8A5883576DC188DBE3 /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48AF31ED2B353357898EF901 /* Identity.swift */; };
 		AC881E97AB28962335278ACB /* DatagramSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8414700934BCB25DEAD7168 /* DatagramSender.swift */; };
 		BFFBD9F3B524A964CCDE78AA /* StreamCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617F8432D0EEC416332C2749 /* StreamCoordinator.swift */; };
 		CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = BE76869FB8D62921E701E9E6 /* OpusBridge.c */; };
-		CCE754E8884C2293AEF6077C /* SwiftASN1 in Frameworks */ = {isa = PBXBuildFile; productRef = A49090BE473C85A1B3E338D0 /* SwiftASN1 */; };
 		F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D770EFE1F4A252B80822AC9 /* Connections.swift */; };
+ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC020000000000000000002 /* ReceiverDiscovery.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,7 +39,6 @@
 		33909874E770FBE95ACCC883 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		34CE3AC20393421309BC7F40 /* media-header-v1.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "media-header-v1.bin"; sourceTree = "<group>"; };
 		3D3794F46CF93AFC94840CA5 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
-		48AF31ED2B353357898EF901 /* Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity.swift; sourceTree = "<group>"; };
 		49C17444C1BD0C7340CA893C /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		52CAF85F01D7F1390662D100 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
 		59E337ED09770B2B3DCB968B /* TitanCamTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TitanCamTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -58,6 +55,7 @@
 		DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolTests.swift; sourceTree = "<group>"; };
 		E8414700934BCB25DEAD7168 /* DatagramSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatagramSender.swift; sourceTree = "<group>"; };
 		EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Opus.xcframework; path = ../build/Opus.xcframework; sourceTree = "<group>"; };
+ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDiscovery.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,8 +63,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4859F91094EBF4E45D814DF6 /* X509 in Frameworks */,
-				CCE754E8884C2293AEF6077C /* SwiftASN1 in Frameworks */,
 				1E69C62DC7BDE2DD3CDCDD3C /* Opus.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -146,6 +142,7 @@
 				7D770EFE1F4A252B80822AC9 /* Connections.swift */,
 				E8414700934BCB25DEAD7168 /* DatagramSender.swift */,
 				617F8432D0EEC416332C2749 /* StreamCoordinator.swift */,
+ ABC020000000000000000002 /* ReceiverDiscovery.swift */,
 			);
 			path = Streaming;
 			sourceTree = "<group>";
@@ -177,7 +174,6 @@
 		F111552FC9541913699064B7 /* Security */ = {
 			isa = PBXGroup;
 			children = (
-				48AF31ED2B353357898EF901 /* Identity.swift */,
 			);
 			path = Security;
 			sourceTree = "<group>";
@@ -207,8 +203,6 @@
 			);
 			name = TitanCam;
 			packageProductDependencies = (
-				64D5655BFB1A31B4C31FCD69 /* X509 */,
-				A49090BE473C85A1B3E338D0 /* SwiftASN1 */,
 			);
 			productName = TitanCam;
 			productReference = 8ECC60A3069787EA13519637 /* TitanCam.app */;
@@ -253,11 +247,7 @@
 			);
 			mainGroup = 7B49AA2CAACE4EB5DA38A5F5;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				5D805A9C4119F8998F2655C4 /* XCRemoteSwiftPackageReference "swift-asn1" */,
-				22C72CDDFE8DB6EAC4090653 /* XCRemoteSwiftPackageReference "swift-certificates" */,
-				3E2265AFB02647400289B19E /* XCRemoteSwiftPackageReference "swift-crypto" */,
-			);
+			packageReferences = ();
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9C655FA5C83D0F96972CDB4F /* Products */;
 			projectDirPath = "";
@@ -306,10 +296,10 @@
 				F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */,
 				269B9B16E6180D0AABCB5DEA /* ContentView.swift in Sources */,
 				AC881E97AB28962335278ACB /* DatagramSender.swift in Sources */,
-				98AF9B8A5883576DC188DBE3 /* Identity.swift in Sources */,
 				CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */,
 				274793FE4C950F1D1B94DFF2 /* Protocol.swift in Sources */,
 				BFFBD9F3B524A964CCDE78AA /* StreamCoordinator.swift in Sources */,
+ ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */,
 				30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */,
 				5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */,
 			);
@@ -360,7 +350,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -380,7 +370,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.1.1;
+				MARKETING_VERSION = 0.2.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -487,7 +477,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -501,7 +491,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.1.1;
+				MARKETING_VERSION = 0.2.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ashrafmostafasec.titancam;
@@ -563,45 +553,9 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		22C72CDDFE8DB6EAC4090653 /* XCRemoteSwiftPackageReference "swift-certificates" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-certificates.git";
-			requirement = {
-				kind = exactVersion;
-				version = 1.9.0;
-			};
-		};
-		3E2265AFB02647400289B19E /* XCRemoteSwiftPackageReference "swift-crypto" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-crypto.git";
-			requirement = {
-				kind = exactVersion;
-				version = 3.12.3;
-			};
-		};
-		5D805A9C4119F8998F2655C4 /* XCRemoteSwiftPackageReference "swift-asn1" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-asn1.git";
-			requirement = {
-				kind = exactVersion;
-				version = 1.3.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
-/* Begin XCSwiftPackageProductDependency section */
-		64D5655BFB1A31B4C31FCD69 /* X509 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 22C72CDDFE8DB6EAC4090653 /* XCRemoteSwiftPackageReference "swift-certificates" */;
-			productName = X509;
-		};
-		A49090BE473C85A1B3E338D0 /* SwiftASN1 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5D805A9C4119F8998F2655C4 /* XCRemoteSwiftPackageReference "swift-asn1" */;
-			productName = SwiftASN1;
-		};
-/* End XCSwiftPackageProductDependency section */
+
+
 	};
 	rootObject = 515ECA14891865A539D5F783 /* Project object */;
 }

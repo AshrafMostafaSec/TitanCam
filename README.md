@@ -1,6 +1,6 @@
 # TitanCam
 
-A new iPhone 13 → Linux camera/audio system: hardware camera encoding, authenticated
+A new iPhone 13 → Linux camera/audio system: hardware camera encoding, direct
 USB and local Wi-Fi, NVIDIA/CPU video decoding, virtual webcam and PipeWire microphone.
 
 **Development preview. Camera-to-computer operation and latency have not yet been
@@ -23,40 +23,35 @@ cargo run --locked -p titan-receiver -- doctor --decode --microphone
 ```
 
 Dependency setup uses sudo in your terminal. The receiver runs as your normal user.
-For a release package use `sudo apt install ./titancam_0.1.1_ubuntu26.04_amd64.deb`
+For a release package use `sudo apt install ./titancam_0.2.0_ubuntu26.04_amd64.deb`
 (on Ubuntu 24.04 select the corresponding `ubuntu24.04` package). NVIDIA drivers,
 usbmuxd/device trust and v4l2loopback are separate host dependencies.
 
 After installing the Debian package, open **TitanCam** from the application menu.
-The local desktop controller offers USB/Wi-Fi, profile and output selection, a temporary
-Wi-Fi QR code (scan with the standard iPhone Camera, then tap Connect in TitanCam),
-and actual receiver counters. It keeps pairing credentials out of diagnostic logs;
-QR files are private and expire after 120 seconds. CLI remains available below.
+The desktop controller starts immediately and remains available when its window closes.
+It offers profile/output controls and actual receiver counters. The iPhone is a simple
+sender with USB, discovered computer buttons and Stop; there is no phone preview,
+login, pairing code or certificate setup. Local transport is intentionally unencrypted.
+Both ends must run **0.2.0 or newer**; the earlier encrypted app is incompatible.
 
-### Wi-Fi
+### Connect
 
-```sh
-titan-receiver run --bind 0.0.0.0 --advertise YOUR_LAN_IP --pairing --profile balanced --preview
-```
+1. Open TitanCam on Linux.
+2. Open the new TitanCam on the iPhone and allow camera/microphone/local network.
+3. For USB, connect/trust the cable and tap **Connect with USB**. For Wi-Fi, use the
+   same LAN and tap the computer name that appears.
+4. Keep the phone app open. Choose Saver, Balanced or Maximum on Linux.
 
-Open TitanCam on the phone, allow camera/microphone/local network, and paste the
-pairing link shown by the receiver. First pairing expires after 120 seconds. Keep
-the app in the foreground. Permit TCP 49160 and UDP 49161 only on your trusted LAN.
-Profiles: `saver`, `balanced`, `maximum`. Connect the PC to the AP by Ethernet when possible.
-
-### USB
-
-Trust the Linux computer on the phone. Tap **Enable USB connection** in TitanCam,
-then use the certificate pin and temporary token displayed on the phone:
+For CLI use:
 
 ```sh
-titan-receiver usb --usb-base-port 43052 --phone-pin PHONE_CERTIFICATE_SHA256 --pair-token PHONE_ONE_TIME_TOKEN --profile saver --preview
+titan-receiver local --advertise YOUR_LAN_IP --profile saver --preview
 ```
 
-Use the USB base port displayed by the phone; it normally is `43052` and can fall
-back to `43062` or `43072`. Alpha.1 phones use `--usb-base-port 49152`. Stop/restart
-and USB/Wi-Fi switching await listener shutdown. A single attached phone is selected automatically. Multiple phones require explicit
-`--udid`; never upload that value in an issue or ordinary diagnostics.
+This automatically monitors USB and publishes Bonjour. Without a LAN address, omit
+`--advertise` for USB. Allow TCP 49160, UDP 49161 and mDNS UDP 5353 on the trusted LAN
+interface/subnet. Do not disable your whole firewall. USB listener conflicts fall
+back between bases 43052/43062/43072 automatically. No copied credentials are needed.
 
 ### Application outputs
 

@@ -17,12 +17,12 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>TitanCam pairing</string>
+			<string>TitanCam local connection</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>titancam</string>
@@ -30,15 +30,19 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_titancam._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Stream your camera to your paired Linux computer.</string>
+	<string>Send your camera to your Linux computer.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Connect securely to your paired camera receiver on the local network.</string>
+	<string>Find and connect to your camera receiver on the local network.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Stream your microphone to your paired Linux computer.</string>
+	<string>Send your microphone to your Linux computer.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

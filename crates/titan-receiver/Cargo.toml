@@ -19,6 +19,3 @@ titan-protocol = { path = "../titan-protocol" }
 titan-usb = { path = "../titan-usb" }
 titan-media = { path = "../titan-media" }
 titan-transport = { path = "../titan-transport" }
-quinn.workspace = true
-rustls.workspace = true
-tokio-rustls.workspace = true
