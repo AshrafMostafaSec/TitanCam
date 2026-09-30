@@ -1,0 +1,23 @@
+[package]
+name = "titan-receiver"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+hex.workspace = true
+rand.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+titan-protocol = { path = "../titan-protocol" }
+titan-usb = { path = "../titan-usb" }
+titan-media = { path = "../titan-media" }
+titan-transport = { path = "../titan-transport" }
+quinn.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true

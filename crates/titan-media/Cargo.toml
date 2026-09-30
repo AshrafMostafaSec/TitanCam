@@ -1,0 +1,14 @@
+[package]
+name = "titan-media"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+gstreamer.workspace = true
+gstreamer-app.workspace = true
+libc.workspace = true
+
+[build-dependencies]
+cc.workspace = true

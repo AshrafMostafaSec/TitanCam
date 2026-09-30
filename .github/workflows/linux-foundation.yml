@@ -1,0 +1,25 @@
+name: Linux build and checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Native development dependencies
+        run: ./scripts/install-system-deps.sh
+      - name: Pinned Rust
+        run: ./scripts/install-rust.sh
+      - name: Format, lint, tests and release build
+        run: ./scripts/check.sh
+      - name: Package receiver
+        run: ./scripts/package-linux.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: TitanCam-Linux-x86_64
+          path: build/package/*
+          if-no-files-found: error

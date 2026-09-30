@@ -1,0 +1,13 @@
+/target/
+/build/
+/.dev/
+/work/
+.env
+.env.*
+*.p12
+*.mobileprovision
+*.key
+*.ipa
+*.xcarchive/
+*.xcresult/
+.DS_Store

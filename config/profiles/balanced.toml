@@ -1,0 +1,10 @@
+# Proposed values; not benchmarked.
+name = "balanced"
+width = 1920
+height = 1080
+fps = 60
+codec = "h264"
+video_bitrate_bps = 14000000
+wifi_opus_bitrate_bps = 96000
+wifi_audio_packet_ms = 10
+wifi_jitter_initial_ms = 10

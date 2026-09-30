@@ -1,0 +1,33 @@
+name: iOS build on macOS
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version
+      - name: Pinned Opus device and simulator libraries
+        run: ./scripts/build-opus-ios.sh
+      - name: Device compile (unsigned for local signing)
+        run: ./scripts/build-ios.sh device-unsigned
+      - name: Simulator protocol and security tests
+        run: ./scripts/build-ios.sh simulator
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: TitanCam-iOS-build
+          path: |
+            build/TitanCam-unsigned-for-local-resigning.ipa
+            build/IOS-SHA256SUMS.txt
+            ios/TitanCam.xcodeproj
+            ios/TitanCam/Info.plist
+            build/SimulatorTests.xcresult
+          if-no-files-found: warn

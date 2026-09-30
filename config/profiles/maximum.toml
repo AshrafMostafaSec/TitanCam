@@ -1,0 +1,11 @@
+# Conditional on hardware/thermal/link qualification; not benchmarked.
+name = "maximum"
+width = 3840
+height = 2160
+fps = 60
+codec = "h264"
+video_bitrate_bps = 65000000
+wifi_opus_bitrate_bps = 256000
+wifi_audio_packet_ms = 5
+wifi_jitter_initial_ms = 5
+requires_4k60_qualification = true
