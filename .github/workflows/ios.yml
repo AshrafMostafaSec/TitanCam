@@ -27,6 +27,7 @@ jobs:
           path: |
             build/TitanCam-unsigned-for-local-resigning.ipa
             build/IOS-SHA256SUMS.txt
+            build/OPUS-LICENSE.txt
             ios/TitanCam.xcodeproj
             ios/TitanCam/Info.plist
             build/SimulatorTests.xcresult

@@ -89,7 +89,10 @@ async fn main() -> Result<()> {
                 ensure!(o.status.success(), "missing {p}");
                 println!("{p}: {}", String::from_utf8_lossy(&o.stdout).trim());
             }
-            println!("USB devices: {}", titan_usb::devices()?.len());
+            match titan_usb::devices() {
+                Ok(devices) => println!("USB devices: {}", devices.len()),
+                Err(_) => println!("USB enumeration unavailable; check usbmuxd and device trust"),
+            };
             if decode {
                 println!("{}", titan_media::decode_probe()?)
             }

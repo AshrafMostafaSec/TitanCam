@@ -32,7 +32,7 @@ struct ContentView: View {
             if !model.stats.isEmpty { VStack(alignment: .leading, spacing: 8) { Text("Receiver health").font(.headline); ForEach(["video", "audio", "dropped", "expired", "decoder", "clock_rtt_ms"], id: \.self) { key in if let value = model.stats[key] { HStack { Text(key.replacingOccurrences(of: "_", with: " ")); Spacer(); Text(value).monospacedDigit() } } } }.font(.caption).padding().background(.quaternary).clipShape(RoundedRectangle(cornerRadius: 16)) }
             Button("Stop streaming", role: .destructive) { model.coordinator?.stop() }.buttonStyle(.bordered)
             Text("Keep this app open and the phone unlocked. Displayed counters come from the receiver; they do not measure glass-to-glass latency.").font(.footnote).foregroundStyle(.secondary)
-        }.padding(24) }.preferredColorScheme(.dark).onChange(of: phase) { phase in if phase != .active { model.coordinator?.stop() } UIApplication.shared.isIdleTimerDisabled = phase == .active }.onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        }.padding(24) }.preferredColorScheme(.dark).onChange(of: phase) { phase in if phase != .active { model.coordinator?.stop() }; UIApplication.shared.isIdleTimerDisabled = phase == .active }.onAppear { UIApplication.shared.isIdleTimerDisabled = true }
     }
 }
 private struct CameraPreview: UIViewRepresentable {

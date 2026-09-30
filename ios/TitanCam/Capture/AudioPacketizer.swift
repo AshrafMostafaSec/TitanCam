@@ -9,7 +9,7 @@ final class AudioPacketizer {
     private var session = Data()
     var output: ((EncodedUnit) -> Void)?
     func configure(_ config: StreamConfig, session: Data) throws {
-        if let encoder { opus_encoder_destroy(encoder) }; encoder = nil; ring.removeAll(keepingCapacity: true); sequence = 0; self.config = config; self.session = session
+        if let encoder { opus_encoder_destroy(encoder) }; encoder = nil; ring.removeAll(keepingCapacity: true); if self.session != session { sequence = 0 }; self.config = config; self.session = session
         if config.audio_codec == "opus" { var error: Int32 = 0; encoder = opus_encoder_create(48_000, Int32(config.audio_channels), config.audio_packet_ms == 5 ? OPUS_APPLICATION_RESTRICTED_LOWDELAY : OPUS_APPLICATION_AUDIO, &error); guard error == OPUS_OK, encoder != nil else { throw CameraError.unavailable("Opus encoder unavailable") }
             // Vararg CTL API is called from a fixed C bridge, because Swift cannot call C varargs.
             titan_opus_bitrate(encoder, config.profile == "saver" ? 64_000 : config.profile == "maximum" ? 256_000 : 96_000)
@@ -17,7 +17,7 @@ final class AudioPacketizer {
     }
     func consume(_ sample: CMSampleBuffer, pts: UInt64) {
         guard let description = CMSampleBufferGetFormatDescription(sample), let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(description) else { return }
-        let format = asbd.pointee; guard abs(format.mSampleRate - 48_000) < 1, format.mFormatID == kAudioFormatLinearPCM else { return }
+        let format = asbd.pointee; guard format.mChannelsPerFrame > 0, (format.mBitsPerChannel == 16 || (format.mBitsPerChannel == 32 && format.mFormatFlags & kAudioFormatFlagIsFloat != 0)), abs(format.mSampleRate - 48_000) < 1, format.mFormatID == kAudioFormatLinearPCM else { return }
         var needed = 0; CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sample, bufferListSizeNeededOut: &needed, bufferListOut: nil, bufferListSize: 0, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: nil)
         let memory = UnsafeMutableRawPointer.allocate(byteCount: max(needed, MemoryLayout<AudioBufferList>.size), alignment: MemoryLayout<AudioBufferList>.alignment); defer { memory.deallocate() }
         let list = memory.bindMemory(to: AudioBufferList.self, capacity: 1); var block: CMBlockBuffer?
@@ -31,7 +31,7 @@ final class AudioPacketizer {
         } }
         let frames = 48 * config.audio_packet_ms; let size = frames * config.audio_channels
         while ring.count >= size { let pcm = Array(ring.prefix(size)); ring.removeFirst(size); var bytes: Data
-            if let encoder { var packet = [UInt8](repeating: 0, count: 1_275); let n = pcm.withUnsafeBufferPointer { buffer in opus_encode(encoder, buffer.baseAddress, Int32(frames), &packet, 1_275) }; guard n > 0 else { continue }; bytes = Data(packet.prefix(Int(n))) } else { bytes = pcm.withUnsafeBytes { Data($0) } }
+            if let encoder { var packet = [UInt8](repeating: 0, count: 1_275); let n = pcm.withUnsafeBufferPointer { buffer in opus_encode(encoder, buffer.baseAddress!, Int32(frames), &packet, 1_275) }; guard n > 0 else { continue }; bytes = Data(packet.prefix(Int(n))) } else { bytes = pcm.withUnsafeBytes { Data($0) } }
             output?(EncodedUnit(kind: encoder == nil ? 2 : 3, independent: false, session: session, config: config.config_id, sequence: sequence, pts: nextPTS, duration: UInt32(config.audio_packet_ms * 1_000_000), bytes: bytes)); sequence += 1; nextPTS += UInt64(config.audio_packet_ms * 1_000_000)
         }
     }

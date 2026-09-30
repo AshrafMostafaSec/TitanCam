@@ -1,7 +1,7 @@
 name: TitanCam
 options:
   deploymentTarget:
-    iOS: '16.0'
+    iOS: '17.4'
   xcodeVersion: '16.4'
   createIntermediateGroups: true
 settings:

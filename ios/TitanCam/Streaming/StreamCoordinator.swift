@@ -71,7 +71,7 @@ final class StreamCoordinator {
     }
     private func attachControl(_ framed: FramedConnection, usb: Bool) {
         framed.receive = { [weak self] data in guard let self else { return }; do { try self.handle(ControlMessage(data: data), usb: usb) } catch { self.fail(error.localizedDescription, retry: false) } }
-        framed.failure = { [weak self] error in guard let self, self.control === framed else { return }; self.control = nil; self.capture.stop(); self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
+        framed.failure = { [weak self] error in guard let self, self.control === framed else { return }; self.control = nil; self.session = ""; self.capture.stop(); self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
         let expected = generation; queue.asyncAfter(deadline: .now() + 5) { [weak self, weak framed] in guard let self, let framed, self.generation == expected else { return }; if self.session.isEmpty { framed.close(CameraError.protocolViolation("Authentication timed out")) } }
     }
     private func handle(_ message: ControlMessage, usb: Bool) throws {
