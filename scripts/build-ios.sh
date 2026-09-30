@@ -25,11 +25,12 @@ case "$mode" in
     xcodebuild "${common[@]}" -sdk iphoneos -destination 'generic/platform=iOS' build
     mkdir -p build/unsigned/Payload
     cp -R build/DerivedData/Build/Products/Release-iphoneos/TitanCam.app build/unsigned/Payload/
-    (cd build/unsigned && zip -q -r ../TitanCam-unsigned-for-local-resigning.ipa Payload)
     { cat LICENSE build/OPUS-LICENSE.txt; for dependency in build/DerivedData/SourcePackages/checkouts/*; do
       printf '\n--- %s ---\n' "$(basename "$dependency")"
       for notice in "$dependency"/LICENSE* "$dependency"/NOTICE*; do [[ ! -f "$notice" ]] || cat "$notice"; done
     done; } > build/iOS-THIRD-PARTY-NOTICES.txt
+    cp build/iOS-THIRD-PARTY-NOTICES.txt build/unsigned/Payload/TitanCam.app/ThirdPartyNotices.txt
+    (cd build/unsigned && zip -q -r ../TitanCam-unsigned-for-local-resigning.ipa Payload)
     shasum -a 256 build/TitanCam-unsigned-for-local-resigning.ipa > build/IOS-SHA256SUMS.txt
     ;;
   *) echo 'Usage: build-ios.sh simulator|device-unsigned' >&2; exit 2;;

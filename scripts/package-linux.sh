@@ -9,6 +9,10 @@ rm -rf "$staging"
 mkdir -p "$staging/usr/bin" "$staging/usr/share/doc/titancam" "$staging/DEBIAN" build/package
 install -m 755 target/release/titan-receiver "$staging/usr/bin/"
 cp README.md ARCHITECTURE.md AGENTS.md "$staging/usr/share/doc/titancam/"
+cargo metadata --locked --format-version 1 > build/package/rust-dependency-manifest.json
+python3 scripts/dependency-inventory.py build/package/rust-dependency-manifest.json build/package/TitanCam-Rust.cdx.json build/package/THIRD-PARTY-NOTICES.txt
+cat LICENSE build/package/THIRD-PARTY-NOTICES.txt > "$staging/usr/share/doc/titancam/copyright"
+cp build/package/TitanCam-Rust.cdx.json "$staging/usr/share/doc/titancam/"
 cat > "$staging/DEBIAN/control" <<CONTROL
 Package: titancam
 Version: $version
@@ -22,7 +26,5 @@ Description: TitanCam encrypted iPhone camera receiver (development preview)
  v4l2loopback kernel module are installed separately.
 CONTROL
 dpkg-deb --root-owner-group --build "$staging" "build/package/titancam_${version}_amd64.deb"
-tar -czf "build/package/titancam-linux-x86_64.tar.gz" -C target/release titan-receiver -C "$(pwd)" README.md ARCHITECTURE.md
-cargo metadata --locked --format-version 1 > build/package/rust-dependency-manifest.json
-python3 scripts/dependency-inventory.py build/package/rust-dependency-manifest.json build/package/TitanCam-Rust.cdx.json build/package/THIRD-PARTY-NOTICES.txt
+tar -czf "build/package/titancam-linux-x86_64.tar.gz" -C target/release titan-receiver -C "$(pwd)" README.md ARCHITECTURE.md LICENSE -C "$(pwd)/build/package" THIRD-PARTY-NOTICES.txt
 (cd build/package && sha256sum *.deb *.tar.gz *.json THIRD-PARTY-NOTICES.txt > SHA256SUMS.txt)
