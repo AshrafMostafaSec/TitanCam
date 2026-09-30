@@ -24,4 +24,5 @@ CONTROL
 dpkg-deb --root-owner-group --build "$staging" "build/package/titancam_${version}_amd64.deb"
 tar -czf "build/package/titancam-linux-x86_64.tar.gz" -C target/release titan-receiver -C "$(pwd)" README.md ARCHITECTURE.md
 cargo metadata --locked --format-version 1 > build/package/rust-dependency-manifest.json
-(cd build/package && sha256sum *.deb *.tar.gz rust-dependency-manifest.json > SHA256SUMS.txt)
+python3 scripts/dependency-inventory.py build/package/rust-dependency-manifest.json build/package/TitanCam-Rust.cdx.json build/package/THIRD-PARTY-NOTICES.txt
+(cd build/package && sha256sum *.deb *.tar.gz *.json THIRD-PARTY-NOTICES.txt > SHA256SUMS.txt)

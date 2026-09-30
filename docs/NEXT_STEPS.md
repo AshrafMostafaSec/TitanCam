@@ -23,6 +23,6 @@ Required next hardware steps, after local signing/install:
 
 Remaining enhancements: mDNS/QR scanning, front-camera switching, larger color/HDR
 qualification, deadline-aware repair/FEC, recording, full calibrated drift model,
-clock uncertainty display, broad fuzzing, SBOM standard export and clean-host installation
+clock uncertainty display, broad fuzzing, combined binary/system/iOS SBOM review and clean-host installation
 qualification. These are not presented as verified features. Maximum 4K60/HEVC remains
 experimental until the corresponding hardware measurements pass.

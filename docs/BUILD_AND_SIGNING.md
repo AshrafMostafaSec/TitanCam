@@ -40,3 +40,7 @@ CI checks and simulator tests establish build correctness, not iPhone hardware o
 A stable release requires real USB/Wi-Fi sessions, camera hardware-encoder confirmation,
 OBS/browser webcam and microphone checks, interruption/reconnect tests and the documented
 latency/quality/energy qualification. Until then artifacts are labelled development previews.
+
+Simulator test bundles use local ad-hoc simulator signatures (`-`) so Keychain
+entitlements work. This uses no Apple account/certificate and does not sign or provision
+the physical-device IPA, which remains explicitly unsigned.

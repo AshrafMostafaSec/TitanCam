@@ -11,17 +11,25 @@ if [[ ! -x build/tools/xcodegen/bin/xcodegen ]]; then
   unzip -q -o build/tools/xcodegen.zip -d build/tools
 fi
 build/tools/xcodegen/bin/xcodegen generate --spec ios/project.yml
-common=(-project ios/TitanCam.xcodeproj -scheme TitanCam -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO)
+if [[ -f ios/Package.resolved ]]; then
+  mkdir -p ios/TitanCam.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+  cp ios/Package.resolved ios/TitanCam.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+fi
+common=(-project ios/TitanCam.xcodeproj -scheme TitanCam -onlyUsePackageVersionsFromResolvedFile -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO)
 case "$mode" in
   simulator)
     destination="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')"
-    xcodebuild "${common[@]}" -destination "id=$destination" test ENABLE_TESTABILITY=YES -resultBundlePath build/SimulatorTests.xcresult
+    xcodebuild "${common[@]}" -destination "id=$destination" test ENABLE_TESTABILITY=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES -resultBundlePath build/SimulatorTests.xcresult
     ;;
   device-unsigned)
     xcodebuild "${common[@]}" -sdk iphoneos -destination 'generic/platform=iOS' build
     mkdir -p build/unsigned/Payload
     cp -R build/DerivedData/Build/Products/Release-iphoneos/TitanCam.app build/unsigned/Payload/
     (cd build/unsigned && zip -q -r ../TitanCam-unsigned-for-local-resigning.ipa Payload)
+    { cat LICENSE build/OPUS-LICENSE.txt; for dependency in build/DerivedData/SourcePackages/checkouts/*; do
+      printf '\n--- %s ---\n' "$(basename "$dependency")"
+      for notice in "$dependency"/LICENSE* "$dependency"/NOTICE*; do [[ ! -f "$notice" ]] || cat "$notice"; done
+    done; } > build/iOS-THIRD-PARTY-NOTICES.txt
     shasum -a 256 build/TitanCam-unsigned-for-local-resigning.ipa > build/IOS-SHA256SUMS.txt
     ;;
   *) echo 'Usage: build-ios.sh simulator|device-unsigned' >&2; exit 2;;
