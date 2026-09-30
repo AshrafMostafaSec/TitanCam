@@ -56,3 +56,9 @@ context. Same-codec reconfiguration reuses the pipeline; same-channel audio reta
 PipeWire source node. Destroying those resources on every bitrate update adds cold-start
 delay and can disconnect microphone consumers. Codec state/reference tracking still resets
 at the configuration barrier. CPU fallback telemetry names the decoder actually selected.
+
+## USB endpoint lifecycle revision (alpha.2)
+
+Physical alpha.1 testing reported NWError POSIX 48 (address already in use). The exact competing socket was not observed. Fixed-port reuse and asynchronous cancellation were both weaknesses: repeated Enable taps cancelled and immediately recreated three listeners, advertised readiness before bind completion, and allowed retired listeners' failures to affect a new transport.
+
+Alpha.2 uses the triplets in `protocol/usb-ports-v1.json`, outside the usual high ephemeral-port range. It waits for all listener `.ready` events before displaying the temporary token, ignores stale-generation callbacks, awaits `.cancelled` before restart/switch, permits local endpoint reuse, and falls back to another complete triplet on EADDRINUSE. TLS pinning and mutual identity proof remain required. The receiver's `--usb-base-port` selects the phone's displayed base; `49152` remains selectable for alpha.1 phones. Media framing/authentication are unchanged. Simulator tests exercise repeated start, immediate stop/restart, a deliberately occupied port and USB→Wi-Fi release. Physical-phone retesting is still required.

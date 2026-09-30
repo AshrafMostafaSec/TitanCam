@@ -44,10 +44,12 @@ Trust the Linux computer on the phone. Tap **Enable USB connection** in TitanCam
 then use the certificate pin and temporary token displayed on the phone:
 
 ```sh
-titan-receiver usb --phone-pin PHONE_CERTIFICATE_SHA256 --pair-token PHONE_ONE_TIME_TOKEN --profile saver --preview
+titan-receiver usb --usb-base-port 43052 --phone-pin PHONE_CERTIFICATE_SHA256 --pair-token PHONE_ONE_TIME_TOKEN --profile saver --preview
 ```
 
-A single attached phone is selected automatically. Multiple phones require explicit
+Use the USB base port displayed by the phone; it normally is `43052` and can fall
+back to `43062` or `43072`. Alpha.1 phones use `--usb-base-port 49152`. Stop/restart
+and USB/Wi-Fi switching await listener shutdown. A single attached phone is selected automatically. Multiple phones require explicit
 `--udid`; never upload that value in an issue or ordinary diagnostics.
 
 ### Application outputs

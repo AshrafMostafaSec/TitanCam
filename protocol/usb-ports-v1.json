@@ -1,0 +1,6 @@
+{
+  "default_base_port": 43052,
+  "fallback_base_ports": [43062, 43072],
+  "roles": {"control": 0, "video": 1, "audio": 2},
+  "legacy_alpha1_base_port": 49152
+}

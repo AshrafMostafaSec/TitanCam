@@ -54,6 +54,9 @@ enum Commands {
         udid: Option<String>,
         #[arg(long)]
         phone_pin: String,
+        /// USB control base port displayed by the iPhone app (video/audio are +1/+2).
+        #[arg(long, default_value_t = 43052, value_parser = clap::value_parser!(u16).range(1024..=65533))]
+        usb_base_port: u16,
         #[arg(long)]
         pair_token: Option<String>,
         #[arg(long,default_value="balanced",value_parser=["saver","balanced","maximum"])]
@@ -141,6 +144,7 @@ async fn main() -> Result<()> {
         Commands::Usb {
             udid,
             phone_pin,
+            usb_base_port,
             pair_token,
             profile,
             preview,
@@ -162,6 +166,7 @@ async fn main() -> Result<()> {
             usb_loop(
                 device,
                 phone_pin,
+                usb_base_port,
                 pair_token.unwrap_or_default(),
                 Arc::new(id),
                 StreamConfig::profile(&profile, true),
@@ -419,6 +424,7 @@ async fn usb_tcp(device: &str, port: u16) -> Result<TcpStream> {
 async fn usb_loop(
     device: String,
     pin: String,
+    base_port: u16,
     token: String,
     id: Arc<Identity>,
     cfg: StreamConfig,
@@ -435,7 +441,7 @@ async fn usb_loop(
                 Duration::from_secs(5),
                 tls.connect(
                     rustls::pki_types::ServerName::try_from("titancam.local")?,
-                    usb_tcp(&device, 49152).await?,
+                    usb_tcp(&device, base_port).await?,
                 ),
             )
             .await??;
@@ -450,7 +456,7 @@ async fn usb_loop(
             .await?;
             let _usb_lease = session::Lease(Some(ctx.clone()));
             // USB's one-time phone token is validated by the phone; its cert is explicitly pinned here.
-            for (port, role) in [(49153, "video"), (49154, "audio")] {
+            for (port, role) in [(base_port + 1, "video"), (base_port + 2, "audio")] {
                 let connector = tokio_rustls::TlsConnector::from(Arc::new(
                     titan_transport::tls_client(&pin, b"titancam-media/1")?,
                 ));
