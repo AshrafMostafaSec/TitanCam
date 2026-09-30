@@ -31,7 +31,7 @@ final class VideoEncoder {
         for (key, value) in [(kVTCompressionPropertyKey_RealTime, true as Any), (kVTCompressionPropertyKey_AllowFrameReordering, false as Any), (kVTCompressionPropertyKey_AverageBitRate, config.bitrate as Any), (kVTCompressionPropertyKey_ExpectedFrameRate, config.fps as Any)] {
             let result = VTSessionSetProperty(created, key: key, value: value as CFTypeRef); guard result == noErr else { throw CameraError.unavailable("Encoder setting rejected: \(key) (\(result))") }
         }
-        if config.codec == "h264" { _ = VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_High_AutoLevel) }
+        if config.codec == "h264" { let status = VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_High_AutoLevel); guard status == noErr else { throw CameraError.unavailable("H.264 profile rejected (\(status))") } }
         var hardware: CFTypeRef?; VTSessionCopyProperty(created, key: kVTCompressionPropertyKey_UsingHardwareAcceleratedVideoEncoder, allocator: nil, valueOut: &hardware)
         guard hardware as? Bool == true else { throw CameraError.unavailable("Hardware encoding could not be confirmed") }
         guard VTCompressionSessionPrepareToEncodeFrames(created) == noErr else { throw CameraError.unavailable("Encoder preparation failed") }

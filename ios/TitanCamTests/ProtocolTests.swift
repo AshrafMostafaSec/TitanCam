@@ -2,6 +2,10 @@ import XCTest
 import CryptoKit
 @testable import TitanCam
 final class ProtocolTests: XCTestCase {
+    func testCommandsRequireAuthentication() {
+        for command in ["Configure", "Start", "StreamingReady", "ConfigureApplied", "MediaReady", "Feedback", "ClockPing"] { XCTAssertFalse(ControlMessage(command, session: String(repeating: "0", count: 32)).allowedBeforeAuthentication) }
+        XCTAssertTrue(ControlMessage("AuthOk", session: String(repeating: "0", count: 32)).allowedBeforeAuthentication)
+    }
     func testSharedRustGoldenBytes() throws {
         let url = try XCTUnwrap(Bundle(for: ProtocolTests.self).url(forResource: "media-header-v1", withExtension: "bin"))
         let unit = EncodedUnit(kind: 1, independent: true, session: Data(repeating: 7, count: 16), config: 1, sequence: 1, pts: 123, duration: 16_666_667, bytes: Data("abcdef".utf8))

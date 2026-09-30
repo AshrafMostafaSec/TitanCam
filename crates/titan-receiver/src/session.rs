@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::{
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -47,6 +47,7 @@ pub struct Context {
     pub config: Mutex<StreamConfig>,
     pub command: mpsc::Sender<Control>,
     pub units: mpsc::Sender<Unit>,
+    pub queued_bytes: AtomicUsize,
     pub bound: AtomicBool,
     pub live: AtomicBool,
     pub cancelled: AtomicBool,
@@ -62,11 +63,30 @@ impl Context {
             .try_send(Control::new(kind, &hex::encode(self.id), body));
     }
     pub fn accept(&self, unit: Unit) {
-        if !self.live.load(Ordering::Acquire) {
+        if !self.live.load(Ordering::Acquire)
+            || unit.header.session != self.id
+            || unit.header.epoch != 1
+        {
             return;
         }
         *self.last_media.lock().unwrap() = Instant::now();
+        let size = unit.data.len();
+        if self
+            .queued_bytes
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                n.checked_add(size).filter(|next| *next <= 16 * 1024 * 1024)
+            })
+            .is_err()
+        {
+            self.stats.lock().unwrap().dropped += 1;
+            self.request(
+                "RequestIDR",
+                serde_json::json!({"reason":"ingress_byte_limit"}),
+            );
+            return;
+        }
         if self.units.try_send(unit).is_err() {
+            self.queued_bytes.fetch_sub(size, Ordering::AcqRel);
             self.stats.lock().unwrap().dropped += 1;
             self.request(
                 "RequestIDR",
@@ -106,6 +126,7 @@ pub fn create(
         config: Mutex::new(config),
         command: commands,
         units,
+        queued_bytes: AtomicUsize::new(0),
         bound: AtomicBool::new(false),
         live: AtomicBool::new(false),
         cancelled: AtomicBool::new(false),
@@ -144,6 +165,8 @@ async fn media_worker(
     let mut idr_at = Instant::now() - Duration::from_secs(1);
     loop {
         let unit = tokio::select! {unit=input.recv()=>match unit{Some(u)=>u,None=>break},_=tokio::time::sleep(Duration::from_millis(250))=>{if ctx.cancelled.load(Ordering::Acquire){break}continue}};
+        ctx.queued_bytes
+            .fetch_sub(unit.data.len(), Ordering::AcqRel);
         if !ctx.live.load(Ordering::Acquire) {
             video = None;
             mic = None;
@@ -213,7 +236,16 @@ async fn media_worker(
                     options.preview,
                     options.webcam.as_deref(),
                     options.software,
-                )?;
+                )
+                .or_else(|error| {
+                    tracing::warn!("initial decoder failed, trying CPU: {error}");
+                    Video::new(
+                        &config.codec,
+                        options.preview,
+                        options.webcam.as_deref(),
+                        true,
+                    )
+                })?;
                 ctx.stats.lock().unwrap().decoder = v.decoder.clone();
                 video = Some(v);
                 video_anchor = None;

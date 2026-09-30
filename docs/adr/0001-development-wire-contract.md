@@ -42,7 +42,7 @@ sessions are further security hardening gates.
 
 Bounds: control 64 KiB, nesting 16, handshake 5 s, server 4 concurrent control and 4 media
 connections, reassembly 4 incomplete AUs/32 MiB/60 ms, video AU 8 MiB, audio 64 KiB,
-fragments <=16384, receiver ingress 16 units, commands 32, app encoder 2 in-flight frames,
+fragments <=16384, receiver ingress 16 units/16 MiB, commands 32, app encoder 2 in-flight frames,
 USB media 2 pending records/channel, QUIC 2 queued video AUs/10 audio packets/8 sends.
 Stale QUIC video is discarded at 100 ms with IDR recovery. Current reassembly timeout is
 fixed; adaptive jitter/repair/FEC and calibrated drift fitting are not enabled.

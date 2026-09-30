@@ -12,6 +12,8 @@ final class StreamCoordinator {
     private var audio: FramedConnection?
     private var datagrams: DatagramSender?
     private var listeners: [NWListener] = []
+    private var authenticated = false
+    private var mediaConnections = 0
     private var streaming = false
     private var session = ""
     private var receiver = Data()
@@ -59,8 +61,8 @@ final class StreamCoordinator {
                 let listener = try NWListener(using: Connections.serverTLS(identity: self.identity, alpn: alpn), on: NWEndpoint.Port(rawValue: port)!)
                 listener.newConnectionHandler = { [weak self] connection in guard let self else { return }; let framed = FramedConnection(connection, queue: self.queue)
                     if port == 49152 { guard self.control == nil else { connection.cancel(); return }; self.control = framed; self.attachControl(framed, usb: true) }
-                    else { framed.receive = { [weak self, weak framed] data in guard let self, let framed else { return }; do { let message = try ControlMessage(data: data); guard message.type == "MediaBind", message.session == self.session, let text = message.body["token"] as? String, text == self.token.hex, message.body["role"] as? String == (port == 49153 ? "video" : "audio") else { throw CameraError.protocolViolation("USB channel authentication failed") }; if port == 49153 { guard self.video == nil else { throw CameraError.protocolViolation("Video channel already bound") }; self.video = framed } else { guard self.audio == nil else { throw CameraError.protocolViolation("Audio channel already bound") }; self.audio = framed }; framed.receive = { _ in framed.close() } } catch { framed.close(error) } }
-                        framed.failure = { [weak self] _ in self?.control?.close(CameraError.unavailable("USB channel disconnected")) }
+                    else { guard self.mediaConnections < 4 else { connection.cancel(); return }; self.mediaConnections += 1; framed.receive = { [weak self, weak framed] data in guard let self, let framed else { return }; do { let message = try ControlMessage(data: data); guard self.authenticated, message.type == "MediaBind", message.session == self.session, let text = message.body["token"] as? String, text == self.token.hex, message.body["role"] as? String == (port == 49153 ? "video" : "audio") else { throw CameraError.protocolViolation("USB channel authentication failed") }; if port == 49153 { guard self.video == nil else { throw CameraError.protocolViolation("Video channel already bound") }; self.video = framed } else { guard self.audio == nil else { throw CameraError.protocolViolation("Audio channel already bound") }; self.audio = framed }; framed.receive = { _ in framed.close() } } catch { framed.close(error) } }
+                        framed.failure = { [weak self, weak framed] _ in guard let self else { return }; self.mediaConnections = max(0, self.mediaConnections - 1); if self.video === framed || self.audio === framed { self.control?.close(CameraError.unavailable("USB channel disconnected")) } }
                     }
                     // Unauthenticated channels have a strict lifetime and receive no media.
                     self.queue.asyncAfter(deadline: .now() + 5) { if port != 49152 && self.video !== framed && self.audio !== framed { framed.close() } }; framed.start()
@@ -71,11 +73,13 @@ final class StreamCoordinator {
         } catch { self.fail(error.localizedDescription, retry: false) } }
     }
     private func attachControl(_ framed: FramedConnection, usb: Bool) {
+        authenticated = false
         framed.receive = { [weak self] data in guard let self else { return }; do { try self.handle(ControlMessage(data: data), usb: usb) } catch { self.fail(error.localizedDescription, retry: false) } }
-        framed.failure = { [weak self] error in guard let self, self.control === framed else { return }; self.control = nil; self.streaming = false; self.session = ""; self.capture.stop(); self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
-        let expected = generation; queue.asyncAfter(deadline: .now() + 5) { [weak self, weak framed] in guard let self, let framed, self.generation == expected else { return }; if self.session.isEmpty { framed.close(CameraError.protocolViolation("Authentication timed out")) } }
+        framed.failure = { [weak self] error in guard let self, self.control === framed else { return }; self.control = nil; self.authenticated = false; self.streaming = false; self.session = ""; self.capture.stop(); self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
+        let expected = generation; queue.asyncAfter(deadline: .now() + 5) { [weak self, weak framed] in guard let self, let framed, self.generation == expected else { return }; if self.control === framed && !self.authenticated { framed.close(CameraError.protocolViolation("Authentication timed out")) } }
     }
     private func handle(_ message: ControlMessage, usb: Bool) throws {
+        guard authenticated || message.allowedBeforeAuthentication else { throw CameraError.protocolViolation("Command received before identity proof") }
         guard message.epoch == 1 else { throw CameraError.protocolViolation("Unsupported transport epoch") }
         if message.type != "Hello" { guard message.session == session else { throw CameraError.protocolViolation("Stale control session") } }
         switch message.type {
@@ -86,7 +90,8 @@ final class StreamCoordinator {
             session = message.session; receiver = publicKey; self.nonce = nonce; token = mediaToken
             sendControl("AuthProof", ["phone_public": identity.publicKey.hex, "signature": try identity.proof(receiver: publicKey, nonce: nonce, session: sid), "pair_token": usb ? usbToken : wifiToken])
         case "AuthOk":
-            guard let signature = message.body["signature"] as? String, let sid = Data(hex: session) else { throw CameraError.protocolViolation("Invalid receiver proof") }; try identity.verify(signature: signature, receiver: receiver, nonce: nonce, session: sid); try Keychain.save("receiver-\(receiver.hex)", receiver); reconnectAttempt = 0
+            guard !authenticated else { throw CameraError.protocolViolation("Duplicate authentication") }
+            guard let signature = message.body["signature"] as? String, let sid = Data(hex: session) else { throw CameraError.protocolViolation("Invalid receiver proof") }; try identity.verify(signature: signature, receiver: receiver, nonce: nonce, session: sid); authenticated = true; try Keychain.save("receiver-\(receiver.hex)", receiver); reconnectAttempt = 0
             heartbeat?.cancel(); let timer = DispatchSource.makeTimerSource(queue: queue); timer.schedule(deadline: .now(), repeating: .milliseconds(500)); timer.setEventHandler { [weak self] in self?.sendControl("Heartbeat") }; heartbeat = timer; timer.resume()
         case "Configure":
             let data = try JSONSerialization.data(withJSONObject: message.body); let requested = try JSONDecoder().decode(StreamConfig.self, from: data); guard let sid = Data(hex: session) else { throw CameraError.protocolViolation("Invalid session") }
@@ -123,7 +128,7 @@ final class StreamCoordinator {
     }
     private func retry() { guard !userStopped && !wifiHost.isEmpty else { return }; reconnectAttempt += 1; let attempt = generation; let delay = min(2, pow(2, Double(min(reconnectAttempt, 4))) * 0.1); queue.asyncAfter(deadline: .now() + delay) { [weak self] in guard let self, !self.userStopped, self.generation == attempt, self.control == nil else { return }; self.session = ""; self.connectWiFi() } }
     private func fail(_ text: String, retry: Bool) { update?("Attention", text, [:]); capture.stop(); if retry { control?.close(CameraError.unavailable(text)) } else { userStopped = true; stopConnections(); update?("Attention", text, [:]) } }
-    private func stopConnections() { heartbeat?.cancel(); heartbeat = nil; let c = control; control = nil; c?.close(); video?.close(); video = nil; audio?.close(); audio = nil; datagrams?.stop(); datagrams = nil; for listener in listeners { listener.cancel() }; listeners.removeAll(); capture.stop(); streaming = false; session = "" }
+    private func stopConnections() { heartbeat?.cancel(); heartbeat = nil; let c = control; control = nil; c?.close(); video?.close(); video = nil; audio?.close(); audio = nil; datagrams?.stop(); datagrams = nil; for listener in listeners { listener.cancel() }; listeners.removeAll(); capture.stop(); authenticated = false; streaming = false; session = "" }
     func stop() { queue.async { self.userStopped = true; self.generation += 1; self.stopConnections(); self.update?("Ready", "Choose USB or pair over Wi-Fi", [:]) } }
     static func random(_ count: Int) -> Data { var bytes = [UInt8](repeating: 0, count: count); precondition(SecRandomCopyBytes(kSecRandomDefault, count, &bytes) == errSecSuccess); return Data(bytes) }
     deinit { heartbeat?.cancel(); for listener in listeners { listener.cancel() } }

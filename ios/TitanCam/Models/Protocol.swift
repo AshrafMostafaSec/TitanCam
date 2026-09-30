@@ -17,6 +17,7 @@ struct ControlMessage {
     let type: String
     let session: String
     let epoch: UInt32
+    var allowedBeforeAuthentication: Bool { ["Hello", "AuthOk"].contains(type) }
     let body: [String: Any]
     init(_ type: String, session: String, body: [String: Any] = [:]) { self.type = type; self.session = session; self.body = body; self.epoch = 1 }
     init(data: Data) throws {
