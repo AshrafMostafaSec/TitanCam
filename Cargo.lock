@@ -1532,7 +1532,7 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "titan-bench"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1550,7 +1550,7 @@ dependencies = [
 
 [[package]]
 name = "titan-media"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "cc",
@@ -1561,7 +1561,7 @@ dependencies = [
 
 [[package]]
 name = "titan-protocol"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "serde",
@@ -1571,7 +1571,7 @@ dependencies = [
 
 [[package]]
 name = "titan-receiver"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "titan-transport"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1614,7 +1614,7 @@ dependencies = [
 
 [[package]]
 name = "titan-usb"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "cc",

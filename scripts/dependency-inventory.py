@@ -10,7 +10,7 @@ for package in packages:
     if package.get('license'):component['licenses']=[{'expression':package['license']}]
     else:component['licenses']=[{'license':{'name':'Unspecified; review upstream license file'}}]
     components.append(component)
-bom={'bomFormat':'CycloneDX','specVersion':'1.6','version':1,'metadata':{'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z'),'component':{'type':'application','name':'TitanCam','version':'0.1.0'},'properties':[{'name':'titancam:scope','value':'Locked Rust workspace dependency graph; includes target-dependent packages, not iOS Apple/Opus libraries or system plugins.'}]},'components':components,'dependencies':[{'ref':refs[n['id']],'dependsOn':[refs[d['pkg']] for d in n['deps']]} for n in manifest['resolve']['nodes']]}
+bom={'bomFormat':'CycloneDX','specVersion':'1.6','version':1,'metadata':{'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z'),'component':{'type':'application','name':'TitanCam','version':next(p['version'] for p in packages if p['name']=='titan-receiver')},'properties':[{'name':'titancam:scope','value':'Locked Rust workspace dependency graph; includes target-dependent packages, not iOS Apple/Opus libraries or system plugins.'}]},'components':components,'dependencies':[{'ref':refs[n['id']],'dependsOn':[refs[d['pkg']] for d in n['deps']]} for n in manifest['resolve']['nodes']]}
 json.dump(bom,open(sys.argv[2],'w',encoding='utf8'),indent=2)
 
 from pathlib import Path
