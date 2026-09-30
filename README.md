@@ -10,7 +10,9 @@ validation. Maximum 4K60 is experimental. See [AGENTS.md](AGENTS.md),
 
 ## Linux
 
-Ubuntu 24.04 LTS x86_64 is the CI/package baseline. Newer Ubuntu needs runtime testing.
+Separate x86_64 packages are built and tested on Ubuntu 24.04 and 26.04 in GitHub
+Actions. Download the package matching your Ubuntu version (`lsb_release -rs`).
+Their native USB library ABIs differ; do not install a 24.04 binary on 26.04.
 
 ```sh
 ./scripts/install-system-deps.sh
@@ -21,7 +23,8 @@ cargo run --locked -p titan-receiver -- doctor --decode --microphone
 ```
 
 Dependency setup uses sudo in your terminal. The receiver runs as your normal user.
-For a release package use `sudo apt install ./titancam_0.1.0_amd64.deb`. NVIDIA drivers,
+For a release package use `sudo apt install ./titancam_0.1.0_ubuntu26.04_amd64.deb`
+(on Ubuntu 24.04 select the corresponding `ubuntu24.04` package). NVIDIA drivers,
 usbmuxd/device trust and v4l2loopback are separate host dependencies.
 
 ### Wi-Fi

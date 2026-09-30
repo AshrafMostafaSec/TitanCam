@@ -1,6 +1,9 @@
 # Builds, signing and local sideloading
 
-Linux receiver builds on Ubuntu 24.04 GitHub Actions. iOS builds on macOS 15 using
+Linux receiver builds separately on Ubuntu 24.04 and 26.04 GitHub Actions.
+Debian dependencies are derived from the actual linked library symbol metadata using
+`dpkg-shlibdeps`; package filenames identify the target Ubuntu release.
+Runner availability: [official Ubuntu 26.04 image](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md). iOS builds on macOS 15 using
 Xcode 16.4; app deployment target iOS 17.4 (hardware-encoder requirement APIs); all Apple compilation occurs on GitHub, never on the user's Linux PC.
 XcodeGen 2.46.0 is checked against the publisher's SHA-256 digest. Opus 1.6.1 source
 is checked out at an exact commit; X509/ASN1/Crypto package versions are pinned.
