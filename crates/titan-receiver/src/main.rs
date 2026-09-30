@@ -84,11 +84,17 @@ async fn main() -> Result<()> {
     match Cli::parse().command {
         Commands::Doctor { decode, microphone } => {
             for p in ["gstreamer-1.0", "libpipewire-0.3", "libusbmuxd-2.0", "opus"] {
-                let o = std::process::Command::new("pkg-config")
+                match std::process::Command::new("pkg-config")
                     .args(["--modversion", p])
-                    .output()?;
-                ensure!(o.status.success(), "missing {p}");
-                println!("{p}: {}", String::from_utf8_lossy(&o.stdout).trim());
+                    .output()
+                {
+                    Ok(o) if o.status.success() => {
+                        println!("{p}: {}", String::from_utf8_lossy(&o.stdout).trim());
+                    }
+                    _ => println!(
+                        "{p}: development version metadata unavailable; use runtime probes below"
+                    ),
+                }
             }
             match titan_usb::devices() {
                 Ok(devices) => println!("USB devices: {}", devices.len()),
