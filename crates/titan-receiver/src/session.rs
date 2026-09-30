@@ -25,6 +25,8 @@ pub struct Stats {
     pub expired: u64,
     pub dropped: u64,
     pub recoveries: u64,
+    pub reference_discarded: u64,
+    pub missing_units: u64,
     pub audio_plc: u64,
     pub microphone_underruns: u64,
     pub decoder: String,
@@ -188,9 +190,17 @@ async fn media_worker(
             }
             if video_sequence.is_some_and(|n| unit.header.sequence != n + 1) {
                 waiting_idr = true;
+                ctx.stats.lock().unwrap().missing_units += unit
+                    .header
+                    .sequence
+                    .saturating_sub(video_sequence.unwrap() + 1);
             }
             video_sequence = Some(unit.header.sequence);
             if waiting_idr && !unit.header.independent() {
+                let mut stats = ctx.stats.lock().unwrap();
+                stats.reference_discarded += 1;
+                stats.dropped += 1;
+                drop(stats);
                 if idr_at.elapsed() > Duration::from_millis(250) {
                     ctx.request("RequestIDR", serde_json::json!({"reason":"reference_loss"}));
                     idr_at = Instant::now();

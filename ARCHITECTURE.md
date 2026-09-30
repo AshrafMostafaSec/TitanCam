@@ -400,3 +400,12 @@ Follow milestones and mandatory tests in AGENTS.md. Before release there must be
 Unknown deployment inputs are the phone's current iOS version, Ubuntu/kernel/driver versions, exact RTX SKU/display topology, AP configuration, Apple account/signing assets, local sideloading-tool identity and whether the user's server fleet includes macOS. These do not prevent coding the baseline, but they prevent claiming those hardware/install targets have passed. Capture them during M0 and in the qualification report.
 
 Useful later enhancements: separately paced local recording of the original compressed stream; user exposure/focus presets; phone mounting/orientation controls; measured temporal layers/FEC; qualified HDR-to-SDR tone mapping; QR pairing UI; anonymized diagnostic export; and deliberate GPU denoise/sharpening presets. Each feature must preserve queue bounds, credential protection, source metadata and transparent effective-profile reporting.
+
+
+## 16. Implemented development contract
+
+The executable preview implements a subset of this target architecture. Read
+[ADR 0001](docs/adr/0001-development-wire-contract.md) for the exact handshake,
+MediaReady/StreamingReady/ConfigureApplied barriers, iOS 17.4 deployment target,
+implemented bounds and remaining qualification gates. Source and passing compilation
+do not establish physical-device performance. See docs/NEXT_STEPS.md for evidence.

@@ -16,10 +16,16 @@ jobs:
         run: ./scripts/install-rust.sh
       - name: Format, lint, tests and release build
         run: ./scripts/check.sh
+      - name: Shared wire fixture
+        run: ./scripts/verify-protocol-fixtures.sh
+      - name: Synthetic encrypted media and recovery
+        run: ./target/release/titan-bench > build-synthetic-report.json
       - name: Package receiver
         run: ./scripts/package-linux.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: TitanCam-Linux-x86_64
-          path: build/package/*
+          path: |
+            build/package/*
+            build-synthetic-report.json
           if-no-files-found: error

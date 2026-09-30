@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/titan-protocol", "crates/titan-usb", "crates/titan-media", "crates/titan-transport", "crates/titan-receiver"]
+members = ["crates/titan-protocol", "crates/titan-usb", "crates/titan-media", "crates/titan-transport", "crates/titan-receiver", "crates/titan-bench"]
 resolver = "3"
 
 [workspace.package]

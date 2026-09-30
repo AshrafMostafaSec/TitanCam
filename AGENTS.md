@@ -14,7 +14,7 @@ Implement usable increments. Do not deliver a UI containing simulated telemetry 
 
 ## 2. Required stack and compatibility
 
-- iOS: Swift, SwiftUI, AVFoundation, CoreMedia/CoreVideo, VideoToolbox, Network.framework, Security/CryptoKit; deployment target iOS 16 or newer as a project choice. Availability-check each API against the selected SDK and physical-device OS. Hardware validation uses iPhone 13, not a simulator.
+- iOS: Swift, SwiftUI, AVFoundation, CoreMedia/CoreVideo, VideoToolbox, Network.framework, Security/CryptoKit; implemented deployment target iOS 17.4 or newer (required hardware-encoder APIs). Availability-check each API against the selected SDK and physical-device OS. Hardware validation uses iPhone 13, not a simulator.
 - Linux: Rust workspace; Tokio for non-real-time orchestration, Quinn/rustls for Wi-Fi QUIC and TLS, gstreamer-rs for video, PipeWire for audio-source publication, and a narrow libusbmuxd C FFI adapter for USB. A small C shim is acceptable if safer than handwritten ABI bindings.
 - Baseline distribution: Ubuntu 24.04 LTS x86_64, GStreamer 1.24 or newer. Add newer Ubuntu releases only after packaging/runtime validation. Pin Rust and dependency versions compatible with that baseline; do not enable bindings for newer GStreamer properties without feature detection.
 - Preferred GPU: actual RTX 4050 **Laptop** GPU, verified by PCI/device/driver diagnostics. NVDEC via `nvh264dec`/`nvh265dec`; software fallback is required. NVENC is unnecessary for the normal receive/decode path.

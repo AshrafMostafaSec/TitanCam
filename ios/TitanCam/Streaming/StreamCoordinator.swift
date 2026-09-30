@@ -12,6 +12,7 @@ final class StreamCoordinator {
     private var audio: FramedConnection?
     private var datagrams: DatagramSender?
     private var listeners: [NWListener] = []
+    private var streaming = false
     private var session = ""
     private var receiver = Data()
     private var nonce = Data()
@@ -71,7 +72,7 @@ final class StreamCoordinator {
     }
     private func attachControl(_ framed: FramedConnection, usb: Bool) {
         framed.receive = { [weak self] data in guard let self else { return }; do { try self.handle(ControlMessage(data: data), usb: usb) } catch { self.fail(error.localizedDescription, retry: false) } }
-        framed.failure = { [weak self] error in guard let self, self.control === framed else { return }; self.control = nil; self.session = ""; self.capture.stop(); self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
+        framed.failure = { [weak self] error in guard let self, self.control === framed else { return }; self.control = nil; self.streaming = false; self.session = ""; self.capture.stop(); self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
         let expected = generation; queue.asyncAfter(deadline: .now() + 5) { [weak self, weak framed] in guard let self, let framed, self.generation == expected else { return }; if self.session.isEmpty { framed.close(CameraError.protocolViolation("Authentication timed out")) } }
     }
     private func handle(_ message: ControlMessage, usb: Bool) throws {
@@ -89,11 +90,14 @@ final class StreamCoordinator {
             heartbeat?.cancel(); let timer = DispatchSource.makeTimerSource(queue: queue); timer.schedule(deadline: .now(), repeating: .milliseconds(500)); timer.setEventHandler { [weak self] in self?.sendControl("Heartbeat") }; heartbeat = timer; timer.resume()
         case "Configure":
             let data = try JSONSerialization.data(withJSONObject: message.body); let requested = try JSONDecoder().decode(StreamConfig.self, from: data); guard let sid = Data(hex: session) else { throw CameraError.protocolViolation("Invalid session") }
-            capture.configure(requested, sessionID: sid) { [weak self] result in self?.queue.async { guard let self else { return }; switch result { case .success(let effective): self.current = effective; self.requestedBitrate = requested.bitrate; self.adaptiveAt = CaptureEngine.hostTime; self.stableSince = self.adaptiveAt; do { let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(effective)) as! [String: Any]; self.sendControl("ConfigureAck", body); self.update?("Configured", "\(effective.width)×\(effective.height) · \(effective.fps) FPS target · \(effective.codec.uppercased())", [:]); if !usb && self.datagrams == nil { self.startMedia() } else { self.datagrams?.configure(effective) } } catch { self.fail(error.localizedDescription, retry: false) }; case .failure(let error): self.fail(error.localizedDescription, retry: false) } } }
+            capture.configure(requested, sessionID: sid) { [weak self] result in self?.queue.async { guard let self else { return }; switch result { case .success(let effective): self.current = effective; self.requestedBitrate = requested.bitrate; self.adaptiveAt = CaptureEngine.hostTime; self.stableSince = self.adaptiveAt; do { let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(effective)) as! [String: Any]; self.sendControl("ConfigureAck", body); self.update?("Configured", "\(effective.width)×\(effective.height) · \(effective.fps) FPS target · \(effective.codec.uppercased())", [:]); self.datagrams?.configure(effective) } catch { self.fail(error.localizedDescription, retry: false) }; case .failure(let error): self.fail(error.localizedDescription, retry: false) } } }
+        case "ConfigureApplied": if streaming { capture.requestIDR(); capture.start() }
+        case "MediaReady": if !usb && datagrams == nil { startMedia() }
         case "MediaBound": datagrams?.bound()
         case "Start":
             if usb { guard video != nil && audio != nil else { queue.asyncAfter(deadline: .now() + 0.1) { [weak self] in try? self?.handle(message, usb: usb) }; return } }
-            sendControl("StartAck", ["host_epoch_ns": capture.epoch.description], completion: { [weak self] in self?.capture.start() }); update?("Streaming", "Encrypted \(usb ? "USB" : "Wi-Fi") · \(current.profile)", [:])
+            streaming = true; sendControl("StartAck", ["host_epoch_ns": capture.epoch.description]); update?("Streaming", "Encrypted \(usb ? "USB" : "Wi-Fi") · \(current.profile)", [:])
+        case "StreamingReady": capture.start()
         case "RequestIDR": capture.requestIDR()
         case "ClockPing": let received = CaptureEngine.hostTime; sendControl("ClockPong", ["r1": message.body["r1"] as? String ?? "", "s2": received.description, "s3": CaptureEngine.hostTime.description])
         case "Feedback": update?("Streaming", "Encrypted \(usb ? "USB" : "Wi-Fi") · \(current.profile)", message.body); adapt(message.body)
@@ -119,7 +123,7 @@ final class StreamCoordinator {
     }
     private func retry() { guard !userStopped && !wifiHost.isEmpty else { return }; reconnectAttempt += 1; let attempt = generation; let delay = min(2, pow(2, Double(min(reconnectAttempt, 4))) * 0.1); queue.asyncAfter(deadline: .now() + delay) { [weak self] in guard let self, !self.userStopped, self.generation == attempt, self.control == nil else { return }; self.session = ""; self.connectWiFi() } }
     private func fail(_ text: String, retry: Bool) { update?("Attention", text, [:]); capture.stop(); if retry { control?.close(CameraError.unavailable(text)) } else { userStopped = true; stopConnections(); update?("Attention", text, [:]) } }
-    private func stopConnections() { heartbeat?.cancel(); heartbeat = nil; let c = control; control = nil; c?.close(); video?.close(); video = nil; audio?.close(); audio = nil; datagrams?.stop(); datagrams = nil; for listener in listeners { listener.cancel() }; listeners.removeAll(); capture.stop(); session = "" }
+    private func stopConnections() { heartbeat?.cancel(); heartbeat = nil; let c = control; control = nil; c?.close(); video?.close(); video = nil; audio?.close(); audio = nil; datagrams?.stop(); datagrams = nil; for listener in listeners { listener.cancel() }; listeners.removeAll(); capture.stop(); streaming = false; session = "" }
     func stop() { queue.async { self.userStopped = true; self.generation += 1; self.stopConnections(); self.update?("Ready", "Choose USB or pair over Wi-Fi", [:]) } }
     static func random(_ count: Int) -> Data { var bytes = [UInt8](repeating: 0, count: count); precondition(SecRandomCopyBytes(kSecRandomDefault, count, &bytes) == errSecSuccess); return Data(bytes) }
     deinit { heartbeat?.cancel(); for listener in listeners { listener.cancel() } }

@@ -258,6 +258,7 @@ pub async fn write_control<W: AsyncWrite + Unpin>(w: &mut W, c: &Control) -> Res
     ensure!(b.len() <= CONTROL_LIMIT, "control record exceeds limit");
     w.write_u32(b.len() as u32).await?;
     w.write_all(&b).await?;
+    w.flush().await?;
     Ok(())
 }
 pub async fn read_media<R: AsyncRead + Unpin>(r: &mut R) -> Result<Vec<u8>> {

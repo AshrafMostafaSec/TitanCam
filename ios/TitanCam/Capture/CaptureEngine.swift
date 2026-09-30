@@ -45,7 +45,7 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             config.audio_channels = 1 // Actual mono route is reported; never label duplicated mono as stereo.
             try self.encoder.queue.sync { try self.encoder.configure(config, session: sessionID) }; try self.audioQueue.sync { try self.audio.configure(config, session: sessionID) }
             self.effective = config; if !running { self.epoch = Self.hostTime }; completion(.success(config))
-            if running { self.queue.async { self.session.startRunning() } }
+            // Resume only after the receiver acknowledges the new configuration.
         } catch { completion(.failure(error)) } }
     }
     func start() { queue.async { self.session.startRunning() } }

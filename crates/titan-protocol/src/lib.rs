@@ -286,6 +286,7 @@ impl StreamConfig {
     }
     pub fn validate(&self) -> bool {
         self.config_id > 0
+            && ["saver", "balanced", "maximum"].contains(&self.profile.as_str())
             && self.width > 0
             && self.width <= 3840
             && self.height > 0

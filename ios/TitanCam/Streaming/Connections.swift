@@ -14,11 +14,11 @@ final class FramedConnection {
     func send(_ data: Data, media: Bool = false, completion: (() -> Void)? = nil) -> Bool {
         guard !closed, pending < (media ? 2 : 32), data.count <= (media ? 8 * 1024 * 1024 + 64 : 65_536) else { return false }
         var record = Data(); record.appendBE(UInt32(data.count)); record.append(data); pending += 1
-        connection.send(content: record, completion: .contentProcessed { [weak self] error in guard let self else { return }; self.pending -= 1; if let error { self.close(error) }; completion?() }); return true
+        connection.send(content: record, completion: .contentProcessed { [weak self] error in guard let self else { return }; self.pending -= 1; if let error { self.close(error) } else if !self.closed { completion?() } }); return true
     }
     private func readLength() { connection.receive(minimumIncompleteLength: 4, maximumLength: 4) { [weak self] data, _, complete, error in guard let self else { return }; guard let data, data.count == 4, let count = data.integer(at: 0, UInt32.self), count > 0, count <= 65_536, !complete, error == nil else { self.close(error); return }; self.readBody(Int(count)) } }
     private func readBody(_ count: Int) { connection.receive(minimumIncompleteLength: count, maximumLength: count) { [weak self] data, _, complete, error in guard let self else { return }; guard let data, data.count == count, error == nil else { self.close(error); return }; self.receive?(data); if complete { self.close(nil) } else { self.readLength() } } }
-    func close(_ error: Error? = nil) { guard !closed else { return }; closed = true; connection.cancel(); failure?(error) }
+    func close(_ error: Error? = nil) { guard !closed else { return }; closed = true; connection.cancel(); let callback = failure; failure = nil; receive = nil; connection.stateUpdateHandler = nil; callback?(error) }
 }
 enum Connections {
     static func serverTLS(identity: DeviceIdentity, alpn: String) throws -> NWParameters { let tls = NWProtocolTLS.Options(); guard let secIdentity = sec_identity_create(identity.tls) else { throw CameraError.unavailable("TLS identity not available") }; sec_protocol_options_set_local_identity(tls.securityProtocolOptions, secIdentity); sec_protocol_options_set_min_tls_protocol_version(tls.securityProtocolOptions, .TLSv13); sec_protocol_options_add_tls_application_protocol(tls.securityProtocolOptions, alpn); let tcp = NWProtocolTCP.Options(); tcp.noDelay = true; return NWParameters(tls: tls, tcp: tcp) }

@@ -9,10 +9,12 @@ git -C build/opus-source checkout --quiet --detach a5d6c1b6f4e582df97390f9ac5c6e
 mkdir -p build/opus-headers/opus
 cp build/opus-source/COPYING build/OPUS-LICENSE.txt
 cp build/opus-source/include/*.h build/opus-headers/opus/
-for item in 'iphoneos arm64 device' 'iphonesimulator arm64 simulator'; do
+for item in 'iphoneos arm64 device' 'iphonesimulator arm64 sim-arm64' 'iphonesimulator x86_64 sim-x86_64'; do
   read -r sdk arch name <<< "$item"
   cmake -S build/opus-source -B "build/opus-$name" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT="$(xcrun --sdk "$sdk" --show-sdk-path)" -DCMAKE_OSX_ARCHITECTURES="$arch" -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release -DOPUS_BUILD_TESTING=OFF -DOPUS_BUILD_PROGRAMS=OFF -DBUILD_SHARED_LIBS=OFF
   cmake --build "build/opus-$name" --parallel 3
 done
+mkdir -p build/opus-simulator
+xcrun lipo -create build/opus-sim-arm64/libopus.a build/opus-sim-x86_64/libopus.a -output build/opus-simulator/libopus.a
 rm -rf build/Opus.xcframework
 xcodebuild -create-xcframework -library build/opus-device/libopus.a -headers build/opus-headers -library build/opus-simulator/libopus.a -headers build/opus-headers -output build/Opus.xcframework

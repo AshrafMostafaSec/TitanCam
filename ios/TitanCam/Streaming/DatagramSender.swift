@@ -12,6 +12,7 @@ final class DatagramSender {
     private var inFlight = 0
     private var tokens: Double = 0
     private var last: UInt64 = CaptureEngine.hostTime
+    private var pacingMilliseconds = 2
     private var budget: Double = 2_000_000
     var dropped: (() -> Void)?
     init(host: String, port: UInt16, pin: String, queue: DispatchQueue) {
@@ -25,11 +26,11 @@ final class DatagramSender {
             var binding = Data("TCMB".utf8); binding.append(1); binding.append(session); binding.appendBE(UInt32(1)); binding.append(token)
             self.binding = binding; self.bindingAt = CaptureEngine.hostTime
             self.connection.send(content: binding, completion: .contentProcessed { error in if let error { failure(error) } else { ready() } }); self.receive()
-            let timer = DispatchSource.makeTimerSource(queue: self.queue); timer.schedule(deadline: .now(), repeating: .milliseconds(1), leeway: .microseconds(100)); timer.setEventHandler { [weak self] in self?.pump() }; self.timer = timer; timer.resume()
+            let timer = DispatchSource.makeTimerSource(queue: self.queue); timer.schedule(deadline: .now(), repeating: .milliseconds(self.pacingMilliseconds), leeway: .microseconds(100)); timer.setEventHandler { [weak self] in self?.pump() }; self.timer = timer; timer.resume()
         case .failed(let error): failure(error); case .cancelled: failure(nil); default: break } }; connection.start(queue: queue)
     }
     func bound() { binding = nil }
-    func configure(_ config: StreamConfig) { budget = Double(config.bitrate + 400_000) / 8 }
+    func configure(_ config: StreamConfig) { budget = (Double(config.bitrate) * 1.10 + 400_000) / 8; pacingMilliseconds = config.profile == "saver" ? 5 : config.profile == "maximum" ? 1 : 2; timer?.schedule(deadline: .now(), repeating: .milliseconds(pacingMilliseconds), leeway: .microseconds(100)) }
     func enqueue(_ unit: EncodedUnit) { let pending = Pending(unit: unit, offset: 0, created: CaptureEngine.hostTime)
         if unit.kind == 1 { if video.count >= 2 { video.removeAll(keepingCapacity: true); dropped?(); if !unit.independent { return } }; video.append(pending) }
         else { if audio.count >= 10 { audio.removeAll(keepingCapacity: true) }; audio.append(pending) }

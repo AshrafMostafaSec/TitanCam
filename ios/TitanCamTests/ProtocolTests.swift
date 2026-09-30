@@ -2,6 +2,11 @@ import XCTest
 import CryptoKit
 @testable import TitanCam
 final class ProtocolTests: XCTestCase {
+    func testSharedRustGoldenBytes() throws {
+        let url = try XCTUnwrap(Bundle(for: ProtocolTests.self).url(forResource: "media-header-v1", withExtension: "bin"))
+        let unit = EncodedUnit(kind: 1, independent: true, session: Data(repeating: 7, count: 16), config: 1, sequence: 1, pts: 123, duration: 16_666_667, bytes: Data("abcdef".utf8))
+        XCTAssertEqual(Data(unit.packet(index: 0, count: 2, offset: 0, length: 3).prefix(64)), try Data(contentsOf: url))
+    }
     func testHeaderGoldenLayout() {
         let unit = EncodedUnit(kind: 1, independent: true, session: Data(repeating: 0x11, count: 16), config: 7, sequence: 9, pts: 123_456, duration: 16_666_666, bytes: Data([1,2,3]))
         let packet = unit.packet(); XCTAssertEqual(packet.count, 67); XCTAssertEqual(String(data: packet.prefix(4), encoding: .utf8), "TCAM"); XCTAssertEqual(packet.integer(at: 24, UInt32.self), 1); XCTAssertEqual(packet.integer(at: 28, UInt32.self), 7); XCTAssertEqual(packet.integer(at: 32, UInt64.self), 9); XCTAssertEqual(packet.integer(at: 40, UInt64.self), 123_456); XCTAssertEqual(packet.integer(at: 52, UInt32.self), 3); XCTAssertEqual(packet.integer(at: 58, UInt16.self), 1)

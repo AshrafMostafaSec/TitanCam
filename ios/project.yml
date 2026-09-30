@@ -56,7 +56,10 @@ targets:
   TitanCamTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [TitanCamTests]
+    sources:
+      - path: TitanCamTests
+      - path: ../protocol/media-header-v1.bin
+        buildPhase: resources
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
