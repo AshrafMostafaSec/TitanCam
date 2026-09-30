@@ -27,6 +27,12 @@ For a release package use `sudo apt install ./titancam_0.1.0_ubuntu26.04_amd64.d
 (on Ubuntu 24.04 select the corresponding `ubuntu24.04` package). NVIDIA drivers,
 usbmuxd/device trust and v4l2loopback are separate host dependencies.
 
+After installing the Debian package, open **TitanCam** from the application menu.
+The local desktop controller offers USB/Wi-Fi, profile and output selection, a temporary
+Wi-Fi QR code (scan with the standard iPhone Camera, then tap Connect in TitanCam),
+and actual receiver counters. It keeps pairing credentials out of diagnostic logs;
+QR files are private and expire after 120 seconds. CLI remains available below.
+
 ### Wi-Fi
 
 ```sh

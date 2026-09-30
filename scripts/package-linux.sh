@@ -15,6 +15,11 @@ staging="build/package-root"
 rm -rf "$staging" build/package
 mkdir -p "$staging/usr/bin" "$staging/usr/share/doc/titancam" "$staging/DEBIAN" build/package
 install -m 755 target/release/titan-receiver "$staging/usr/bin/"
+mkdir -p "$staging/usr/share/titancam" "$staging/usr/share/applications"
+install -m 644 scripts/desktop-launcher.py "$staging/usr/share/titancam/"
+install -m 644 packaging/titancam.desktop "$staging/usr/share/applications/"
+printf '%s\n' '#!/bin/sh' 'exec /usr/bin/python3 /usr/share/titancam/desktop-launcher.py "$@"' > "$staging/usr/bin/titancam"
+chmod 755 "$staging/usr/bin/titancam"
 cp README.md ARCHITECTURE.md AGENTS.md "$staging/usr/share/doc/titancam/"
 cargo metadata --locked --format-version 1 > build/package/rust-dependency-manifest.json
 python3 scripts/dependency-inventory.py build/package/rust-dependency-manifest.json build/package/TitanCam-Rust.cdx.json build/package/THIRD-PARTY-NOTICES.txt
@@ -40,7 +45,7 @@ Section: video
 Priority: optional
 Architecture: $architecture
 Maintainer: Ashraf Mostafa <233173916+AshrafMostafaSec@users.noreply.github.com>
-Depends: $native_dependencies, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav
+Depends: $native_dependencies, python3-gi, gir1.2-gtk-4.0, qrencode, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav
 Description: TitanCam encrypted iPhone camera receiver (development preview)
  Hardware streaming qualification is pending. NVIDIA drivers and the optional
  v4l2loopback kernel module are installed separately.

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TitanCam
+Comment=iPhone camera and microphone over USB or Wi-Fi
+Exec=titancam
+Icon=camera-video
+Terminal=false
+Categories=AudioVideo;Video;
