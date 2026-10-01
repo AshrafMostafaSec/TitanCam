@@ -358,6 +358,44 @@ pub fn check_binding(b: &[u8], session: [u8; 16], epoch: u32, token: [u8; 32]) -
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn repair_requests_are_bounded_by_age_and_missing_fragment_count() {
+        let header = MediaHeader {
+            kind: 1,
+            flags: 1,
+            session: [1; 16],
+            epoch: 1,
+            config: 1,
+            sequence: 0,
+            pts: 0,
+            duration: 16666666,
+            unit_len: 200,
+            index: 0,
+            count: 200,
+            offset: 0,
+        };
+        let mut packet = header.encode().to_vec();
+        packet.push(1);
+        let now = Instant::now();
+        let mut reassembler = Reassembler::new([1; 16], 1, 1, Duration::from_millis(60));
+        reassembler.push(&packet, now).unwrap();
+        assert!(reassembler.missing(now).is_empty());
+        let missing = reassembler.missing(now + Duration::from_millis(6));
+        assert_eq!(missing[0].1.len(), 64);
+        assert_eq!(missing[0].1[0], 1);
+        assert!(
+            reassembler
+                .missing(now + Duration::from_millis(50))
+                .is_empty()
+        );
+        assert!(reassembler.expire(now + Duration::from_millis(61)));
+        assert!(
+            reassembler
+                .missing(now + Duration::from_millis(61))
+                .is_empty()
+        );
+    }
+
     use super::*;
     fn packet(sequence: u64, index: u16, offset: u32, data: &[u8]) -> Vec<u8> {
         let h = MediaHeader {

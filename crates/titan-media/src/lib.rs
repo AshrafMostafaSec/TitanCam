@@ -114,6 +114,7 @@ pub struct Video {
     source: app::AppSrc,
     pub decoder: String,
     decoded: Arc<AtomicU64>,
+    direction: std::sync::Mutex<Option<&'static str>>,
 }
 fn load_element(name: &str) -> Option<gst::Element> {
     // A cached factory can remain registered after its GPU/plugin becomes
@@ -201,7 +202,7 @@ impl Video {
             branches.push_str(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! fakesink sync=true ");
         }
         let launch = format!(
-            "appsrc name=video is-live=true format=time block=false max-buffers=2 max-bytes=16777216 ! {parser} ! {decoder}{settings} ! tee name=t {branches}"
+            "appsrc name=video is-live=true format=time block=false max-buffers=8 max-bytes=16777216 ! {parser} ! {decoder}{settings} ! tee name=t {branches}"
         );
         let pipeline = gst::parse::launch(&launch)?
             .downcast::<gst::Pipeline>()
@@ -238,21 +239,42 @@ impl Video {
             source,
             decoder: decoder.into(),
             decoded,
+            direction: std::sync::Mutex::new(None),
         })
     }
     pub fn decoded(&self) -> u64 {
         self.decoded.load(Ordering::Relaxed)
     }
+    pub fn decoded_counter(&self) -> Arc<AtomicU64> {
+        self.decoded.clone()
+    }
     pub fn set_transform(&self, controls: &dsp::Controls) {
+        let direction = controls.direction();
+        let mut applied = self.direction.lock().unwrap();
+        if *applied == Some(direction) {
+            return;
+        }
         for name in ["preview_transform", "webcam_transform"] {
             if let Some(element) = self.pipeline.by_name(name) {
-                element.set_property_from_str("video-direction", controls.direction());
+                element.set_property_from_str("video-direction", direction);
             }
         }
+        *applied = Some(direction);
     }
     pub fn push(&self, data: Vec<u8>, pts: u64, duration: u32) -> Result<()> {
         ensure!(
-            self.source.current_level_buffers() < 2,
+            self.source.current_level_buffers() < 8
+                && self
+                    .source
+                    .current_level_bytes()
+                    .saturating_add(data.len() as u64)
+                    <= 16 * 1024 * 1024
+                && self
+                    .source
+                    .current_level_time()
+                    .map_or(0, |time| time.nseconds())
+                    .saturating_add(duration as u64)
+                    <= 120_000_000,
             "video ingress overrun; reference recovery required"
         );
         let mut b = gst::Buffer::from_mut_slice(data);

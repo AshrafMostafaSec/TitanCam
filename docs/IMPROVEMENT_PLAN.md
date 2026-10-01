@@ -83,7 +83,7 @@ The current cached `camera` and `configured` flag cannot merely be changed to `.
 
 ## 6. P1 — audio gain, mute and sync
 
-Implement receiver digital gain after Opus/PCM decoding and before PipeWire publication, independently of the phone's hardware mic gain. Proposed range: −60 dB to +12 dB, default 0 dB, separate mute; linear multiplier `10^(dB/20)`. Process in float or sufficient-width arithmetic, smooth gain over 5–10 ms, prevent wraparound, count clipping and provide peak/RMS metering. Optional limiter has an explicit latency budget and remains off by default. Gain cannot recover already clipped phone samples.
+Implement receiver digital gain after Opus/PCM decoding and before PipeWire publication, independently of the phone's hardware mic gain. Proposed range: −60 dB to +12 dB, default 0 dB, separate mute; linear multiplier `10^(dB/20)`. Process in float or sufficient-width arithmetic, smooth gain over a bounded 10–40 ms ramp, prevent wraparound, count clipping and provide peak/RMS metering. Optional limiter has an explicit latency budget and remains off by default. Gain cannot recover already clipped phone samples.
 
 Mute publishes timed silence and keeps the virtual microphone available. Avoid toggling PipeWire nodes or rebuilding video for volume changes. Publish source-volume controls for desktop compatibility where supported, with one documented effective gain path to prevent accidental double amplification. Level meters and UI messages stay outside the PipeWire real-time callback [S8].
 
@@ -200,7 +200,7 @@ Release only after exact-source successful builds and hardware gates. Include ma
 | P2b | HEVC/4K60/thermal/quality qualification | Sustained per-lens evidence; honest fallback |
 | P3 | Packaging, cleanup, documentation and release evidence | Matching artifacts, clean install and local sideload |
 
-The desktop artwork/launcher fix is the only implementation change made during this planning audit. The main feature work and physical-stream qualification above remain pending.
+Implementation update: 0.3.0 includes live camera/microphone controls, digital audio controls/meters, one-decode transforms, independent A/V workers, clock drift mapping, bounded selective repair/reordering, and a responsive process supervisor. CI builds and synthetic checks are recorded in docs/VALIDATION_0.3.0.md. Physical front/rear, 4K60, USB/Wi-Fi, color/quality, latency and two-hour qualification remain pending as requested by the owner. Adaptive FEC, HDR, capacity probing and recording remain deferred experiments.
 
 ## 15. Primary research sources
 

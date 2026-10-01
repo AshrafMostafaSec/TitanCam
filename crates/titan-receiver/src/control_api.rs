@@ -19,6 +19,7 @@ pub struct Hub {
     pub active: Mutex<Weak<Context>>,
     pub desired: Mutex<StreamConfig>,
     pub controls: Arc<Mutex<Controls>>,
+    pub last_error: Mutex<String>,
     apply: tokio::sync::Mutex<()>,
 }
 impl Hub {
@@ -31,6 +32,7 @@ impl Hub {
                 ..Default::default()
             })),
             apply: tokio::sync::Mutex::new(()),
+            last_error: Mutex::new(String::new()),
         })
     }
     pub fn context(&self) -> Option<Arc<Context>> {
@@ -45,7 +47,7 @@ impl Hub {
         if let Some(ctx) = self.context() {
             serde_json::json!({"connected":ctx.live.load(std::sync::atomic::Ordering::Acquire),"session":hex::encode(ctx.id),"config":*ctx.config.lock().unwrap(),"capabilities":*ctx.capabilities.lock().unwrap(),"stats":*ctx.stats.lock().unwrap(),"gain_db":controls.gain_db,"mute":controls.mute,"mirror":controls.mirror,"flip":controls.flip})
         } else {
-            serde_json::json!({"connected":false,"config":*self.desired.lock().unwrap(),"capabilities":{},"gain_db":controls.gain_db,"mute":controls.mute,"mirror":controls.mirror,"flip":controls.flip})
+            serde_json::json!({"connected":false,"config":*self.desired.lock().unwrap(),"capabilities":{},"last_error":*self.last_error.lock().unwrap(),"gain_db":controls.gain_db,"mute":controls.mute,"mirror":controls.mirror,"flip":controls.flip})
         }
     }
     async fn configure(&self, patch: serde_json::Value) -> Result<serde_json::Value> {
@@ -85,7 +87,8 @@ impl Hub {
                     "bitrate",
                     "codec",
                     "profile",
-                    "playout_ms"
+                    "playout_ms",
+                    "audio_packet_ms"
                 ]
                 .contains(&key.as_str()),
                 "unsupported configuration field {key}"
@@ -142,7 +145,8 @@ impl Hub {
                     if self.context().is_some_and(|ctx| ctx.config.lock().unwrap().codec == "hevc") {
                         cfg.bitrate = match name { "saver"=>3_000_000,"maximum"=>40_000_000,_=>9_000_000 };
                     }
-                    self.configure(serde_json::json!({"profile":name,"width":cfg.width,"height":cfg.height,"fps":cfg.fps,"bitrate":cfg.bitrate,"playout_ms":cfg.playout_ms})).await
+                    let usb = self.context().is_some_and(|ctx| ctx.config.lock().unwrap().audio_codec == "pcm");
+                    self.configure(serde_json::json!({"profile":name,"width":cfg.width,"height":cfg.height,"fps":cfg.fps,"bitrate":cfg.bitrate,"playout_ms":if usb {35} else {cfg.playout_ms},"audio_packet_ms":if usb {5} else {cfg.audio_packet_ms}})).await
                 }
                 "SetAudio" => {
                     let mut controls = self.controls.lock().unwrap();

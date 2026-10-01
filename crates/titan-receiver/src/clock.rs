@@ -85,6 +85,10 @@ mod tests {
                 let r = second as f64 * 1e9;
                 let s = 8e12 + r * rate;
                 clock.update(r, s + 1e6 * rate, s + 1e6 * rate, r + 2e6);
+                // Asymmetric queueing must not drag the capture timeline toward arrival time.
+                if second % 17 == 0 {
+                    clock.update(r, s + 100e6 * rate, s + 100e6 * rate, r + 102e6);
+                }
                 if second > 60 {
                     let mapped = clock.map((s + 1e6 * rate) as u64).unwrap();
                     assert!((mapped as f64 - (r + 1e6)).abs() < 1e6);

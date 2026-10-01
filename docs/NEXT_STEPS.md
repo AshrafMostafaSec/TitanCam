@@ -1,26 +1,17 @@
-# Local v2 implementation and acceptance
+# TitanCam 0.3.0 implementation and acceptance
 
-0.2.0 replaces authentication/TLS/QUIC with clear TCP control/USB and paced UDP media,
-as explicitly requested for the owner's trusted LAN. Bonjour and bounded USB metadata
-automatically discover endpoints. The iPhone UI is sender-only without preview;
-Linux starts immediately, controls profile/outputs and retains one active media owner.
-NVDEC decodes once; webcam uses native-size NV12 and optional GL preview is bounded.
+The Linux GUI now discovers phone cameras/lenses and their supported formats; controls microphone inputs/data sources exposed by public AVAudioSession APIs; applies profiles and H.264/HEVC with correlated acknowledgements and explicit fallback; and offers gain/mute, meters, mirror and vertical flip. One decoder supplies both preview and webcam. A serialized background process supervisor keeps receiver restarts off the GTK main thread. The desktop icon uses the app artwork.
 
-Verification is recorded in Actions and the release notes. Unit/synthetic/simulator
-checks are not a real camera test. Install the matching new IPA through local iLoader
-before attempting to connect; 0.1.x is incompatible.
-0.2.1 fixes the HDR-setter camera configuration crash observed on 0.2.0 build 3.
-The transport remains v2 and is compatible with the 0.2.0 Linux receiver.
+Independent video/audio workers share drift-aware sender clock mapping. Completed video AUs have bounded reordering; capability-negotiated UDP fragment repair uses deadline, cache, queue and aggregate traffic limits. Network adaptation lowers bitrate on expiry, missing/late units or elevated RTT, and restores it slowly; bitrate changes preserve the encoder. USB and Wi-Fi reconnect preserve the chosen source/configuration during a receiver process lifetime. Phone foreground restoration renegotiates after a background interruption. Dim screen is foreground operation, not locked-camera capture.
 
-Required hardware qualification:
-1. Confirm actual phone capture, hardware encode and effective saver format.
-2. Ten-minute USB capture and unplug/reconnect, plus immediate Stop/Start.
-3. Discover the computer on Wi-Fi, stream and interrupt/reconnect the AP.
-4. Validate NVDEC, webcam and microphone in OBS/browser, flash/click A/V skew.
-5. Measure sustained profiles, GPU decode/power, thermal/battery and glass-to-glass delay.
+Install matching 0.3.0 endpoints. The iPhone archive is unsigned for local iLoader signing, not directly installable. See BUILD_AND_SIGNING.md and VALIDATION_0.3.0.md. Sources were built and tested; the owner explicitly deferred two-hour physical testing.
 
-Maximum 4K60/HEVC, exact latency, long-session stability and quality/energy targets
-remain unqualified. Repair/FEC, front camera/HDR, IPv6/interface selection and recording
-are later work. No media recording/upload is enabled.
+## Remaining hardware gates
 
-0.2.3 corrects the local usbmuxd Unix-socket adapter and the optional encoder hardware query. Install iPhone 0.2.3 build 6 and the updated Linux receiver for USB testing. A virtual webcam becomes a capture source while actual video is being fed.
+1. Front/rear camera and actual built-in microphone-source selection, effective route reporting and denied/unavailable choices.
+2. Real USB and Wi-Fi sessions; unplug/replug, Stop/Start, lock/unlock, foreground restoration, audio route interruption and AP outage.
+3. NVDEC and image transforms with preview plus V4L2/PipeWire in OBS and a browser.
+4. Recorded flash/click A/V skew, glass-to-glass latency and fidelity/color checks, with measurement uncertainty.
+5. Two-hour operation, including 4K60/HEVC and H.264 comparisons, thermal/pressure behavior, sustainable network load and power.
+
+Maximum 4K60/HEVC, exact latency, long-session stability and quality/energy targets remain unqualified. Ordinary locked/background camera capture is unsupported. HDR, FEC, passive capacity probing, IPv6/interface choice and recording are deferred work; no recording/upload is enabled. Settings survive transport reconnect, not receiver process replacement.

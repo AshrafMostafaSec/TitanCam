@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		044616C0A66AAC30A26035E1 /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CAF85F01D7F1390662D100 /* CaptureEngine.swift */; };
 		1678134B118AB8089E1FFA2E /* media-header-v1.bin in Resources */ = {isa = PBXBuildFile; fileRef = 34CE3AC20393421309BC7F40 /* media-header-v1.bin */; };
+		1B36F51A7E3FE38A990E2F13 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D25AC14DFE9A1825886FADD /* ReceiverDiscovery.swift */; };
+		1D7E37A91407033FBDEFC666 /* VideoHDRPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8A6E7849ABDAC2FDC92291 /* VideoHDRPolicy.swift */; };
 		1E69C62DC7BDE2DD3CDCDD3C /* Opus.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */; };
 		269B9B16E6180D0AABCB5DEA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33909874E770FBE95ACCC883 /* ContentView.swift */; };
 		274793FE4C950F1D1B94DFF2 /* Protocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD6816ACE62FEA6C1FF21F7 /* Protocol.swift */; };
@@ -16,16 +18,19 @@
 		30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */; };
 		5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */; };
 		61AE0920BF76B13696797E31 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9E0BC8A4307531321AFFFE07 /* Assets.xcassets */; };
+		70164A6B72EA3B416C2069F1 /* CameraCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE8EC3434F513C0619ECCB9 /* CameraCatalog.swift */; };
 		7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */; };
+		8BDB1187A50E60FC95E7BF5D /* MediaSendQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847312E12A6AA83AAFE932BB /* MediaSendQueueTests.swift */; };
+		963B4D17F137DB9BBE1CF15A /* LiveControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A466EEDD1D71FBBC536B3124 /* LiveControlTests.swift */; };
+		9783ED6BA9738157FEA92FCC /* HardwareEncoderPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E28FF5F4FB0C24477298DCA /* HardwareEncoderPolicyTests.swift */; };
+		AC2AD5097F4B1A357C52C070 /* USBMediaSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD07EB31277DDC7916279DFF /* USBMediaSender.swift */; };
 		AC881E97AB28962335278ACB /* DatagramSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8414700934BCB25DEAD7168 /* DatagramSender.swift */; };
+		B225163E2FB98AEFC297504C /* VideoHDRPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D064A16327F30574D2C1990E /* VideoHDRPolicyTests.swift */; };
+		BD9249D2F98180F2EFF15C8F /* MediaSendQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B05FDEF3518B73DC4606288 /* MediaSendQueue.swift */; };
 		BFFBD9F3B524A964CCDE78AA /* StreamCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617F8432D0EEC416332C2749 /* StreamCoordinator.swift */; };
 		CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = BE76869FB8D62921E701E9E6 /* OpusBridge.c */; };
 		F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D770EFE1F4A252B80822AC9 /* Connections.swift */; };
-ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC020000000000000000002 /* ReceiverDiscovery.swift */; };
-		ABC021000000000000000001 /* VideoHDRPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC021000000000000000002 /* VideoHDRPolicy.swift */; };
-		ABC021000000000000000003 /* VideoHDRPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC021000000000000000004 /* VideoHDRPolicyTests.swift */; };
-		ABC022000000000000000001 /* HardwareEncoderPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC022000000000000000002 /* HardwareEncoderPolicy.swift */; };
-		ABC022000000000000000003 /* HardwareEncoderPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC022000000000000000004 /* HardwareEncoderPolicyTests.swift */; };
+		FD209003A3E0DE806196A6FC /* HardwareEncoderPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD170B1836F4A580C3622A /* HardwareEncoderPolicy.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,30 +45,35 @@ ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBu
 
 /* Begin PBXFileReference section */
 		0B09A7DF933344DCD5E1E4E1 /* AudioPacketizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPacketizer.swift; sourceTree = "<group>"; };
+		1BAD170B1836F4A580C3622A /* HardwareEncoderPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareEncoderPolicy.swift; sourceTree = "<group>"; };
+		2E28FF5F4FB0C24477298DCA /* HardwareEncoderPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareEncoderPolicyTests.swift; sourceTree = "<group>"; };
 		33909874E770FBE95ACCC883 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		34CE3AC20393421309BC7F40 /* media-header-v1.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "media-header-v1.bin"; sourceTree = "<group>"; };
 		3D3794F46CF93AFC94840CA5 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		49C17444C1BD0C7340CA893C /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		52CAF85F01D7F1390662D100 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
 		59E337ED09770B2B3DCB968B /* TitanCamTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TitanCamTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B05FDEF3518B73DC4606288 /* MediaSendQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSendQueue.swift; sourceTree = "<group>"; };
 		617F8432D0EEC416332C2749 /* StreamCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamCoordinator.swift; sourceTree = "<group>"; };
+		7D25AC14DFE9A1825886FADD /* ReceiverDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDiscovery.swift; sourceTree = "<group>"; };
 		7D770EFE1F4A252B80822AC9 /* Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connections.swift; sourceTree = "<group>"; };
+		847312E12A6AA83AAFE932BB /* MediaSendQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSendQueueTests.swift; sourceTree = "<group>"; };
 		8ECC60A3069787EA13519637 /* TitanCam.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TitanCam.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8F8A6E7849ABDAC2FDC92291 /* VideoHDRPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicy.swift; sourceTree = "<group>"; };
 		95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitanCamApp.swift; sourceTree = "<group>"; };
 		9AD6816ACE62FEA6C1FF21F7 /* Protocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocol.swift; sourceTree = "<group>"; };
 		9E0BC8A4307531321AFFFE07 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A466EEDD1D71FBBC536B3124 /* LiveControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveControlTests.swift; sourceTree = "<group>"; };
 		A82B2542E1BA5C51E1FB9EB3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoEncoder.swift; sourceTree = "<group>"; };
+		BD07EB31277DDC7916279DFF /* USBMediaSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBMediaSender.swift; sourceTree = "<group>"; };
 		BE76869FB8D62921E701E9E6 /* OpusBridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OpusBridge.c; sourceTree = "<group>"; };
+		D064A16327F30574D2C1990E /* VideoHDRPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicyTests.swift; sourceTree = "<group>"; };
 		D5F945670A515CE3EC5B0576 /* OpusBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpusBridge.h; sourceTree = "<group>"; };
 		DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolTests.swift; sourceTree = "<group>"; };
 		E8414700934BCB25DEAD7168 /* DatagramSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatagramSender.swift; sourceTree = "<group>"; };
 		EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Opus.xcframework; path = ../build/Opus.xcframework; sourceTree = "<group>"; };
-ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDiscovery.swift; sourceTree = "<group>"; };
-		ABC021000000000000000002 /* VideoHDRPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicy.swift; sourceTree = "<group>"; };
-		ABC021000000000000000004 /* VideoHDRPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicyTests.swift; sourceTree = "<group>"; };
-		ABC022000000000000000002 /* HardwareEncoderPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareEncoderPolicy.swift; sourceTree = "<group>"; };
-		ABC022000000000000000004 /* HardwareEncoderPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareEncoderPolicyTests.swift; sourceTree = "<group>"; };
+		FDE8EC3434F513C0619ECCB9 /* CameraCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCatalog.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,12 +92,13 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			isa = PBXGroup;
 			children = (
 				0B09A7DF933344DCD5E1E4E1 /* AudioPacketizer.swift */,
+				FDE8EC3434F513C0619ECCB9 /* CameraCatalog.swift */,
 				52CAF85F01D7F1390662D100 /* CaptureEngine.swift */,
+				1BAD170B1836F4A580C3622A /* HardwareEncoderPolicy.swift */,
 				BE76869FB8D62921E701E9E6 /* OpusBridge.c */,
 				D5F945670A515CE3EC5B0576 /* OpusBridge.h */,
 				B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */,
-				ABC021000000000000000002 /* VideoHDRPolicy.swift */,
-				ABC022000000000000000002 /* HardwareEncoderPolicy.swift */,
+				8F8A6E7849ABDAC2FDC92291 /* VideoHDRPolicy.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -104,9 +115,11 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			isa = PBXGroup;
 			children = (
 				3D3794F46CF93AFC94840CA5 /* .gitkeep */,
+				2E28FF5F4FB0C24477298DCA /* HardwareEncoderPolicyTests.swift */,
+				A466EEDD1D71FBBC536B3124 /* LiveControlTests.swift */,
+				847312E12A6AA83AAFE932BB /* MediaSendQueueTests.swift */,
 				DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */,
-				ABC021000000000000000004 /* VideoHDRPolicyTests.swift */,
-				ABC022000000000000000004 /* HardwareEncoderPolicyTests.swift */,
+				D064A16327F30574D2C1990E /* VideoHDRPolicyTests.swift */,
 			);
 			path = TitanCamTests;
 			sourceTree = "<group>";
@@ -153,8 +166,10 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			children = (
 				7D770EFE1F4A252B80822AC9 /* Connections.swift */,
 				E8414700934BCB25DEAD7168 /* DatagramSender.swift */,
+				5B05FDEF3518B73DC4606288 /* MediaSendQueue.swift */,
+				7D25AC14DFE9A1825886FADD /* ReceiverDiscovery.swift */,
 				617F8432D0EEC416332C2749 /* StreamCoordinator.swift */,
- ABC020000000000000000002 /* ReceiverDiscovery.swift */,
+				BD07EB31277DDC7916279DFF /* USBMediaSender.swift */,
 			);
 			path = Streaming;
 			sourceTree = "<group>";
@@ -176,18 +191,10 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				95C46A2C4B9CAEAC9B765C77 /* TitanCamApp.swift */,
 				030FE4DE589D661CA1D34F3E /* Capture */,
 				51F7B50460B1F476E70CF61C /* Models */,
-				F111552FC9541913699064B7 /* Security */,
 				CA17C7B075BB891F45748389 /* Streaming */,
 				B044F5A85ED870EE3EAE71AF /* Views */,
 			);
 			path = TitanCam;
-			sourceTree = "<group>";
-		};
-		F111552FC9541913699064B7 /* Security */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Security;
 			sourceTree = "<group>";
 		};
 		FEA81F5BCC07F53FEE25D27F /* protocol */ = {
@@ -259,7 +266,6 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			);
 			mainGroup = 7B49AA2CAACE4EB5DA38A5F5;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = ();
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9C655FA5C83D0F96972CDB4F /* Products */;
 			projectDirPath = "";
@@ -295,9 +301,11 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9783ED6BA9738157FEA92FCC /* HardwareEncoderPolicyTests.swift in Sources */,
+				963B4D17F137DB9BBE1CF15A /* LiveControlTests.swift in Sources */,
+				8BDB1187A50E60FC95E7BF5D /* MediaSendQueueTests.swift in Sources */,
 				7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */,
-				ABC021000000000000000003 /* VideoHDRPolicyTests.swift in Sources */,
-				ABC022000000000000000003 /* HardwareEncoderPolicyTests.swift in Sources */,
+				B225163E2FB98AEFC297504C /* VideoHDRPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -306,18 +314,21 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			buildActionMask = 2147483647;
 			files = (
 				27D17E1E1834EC3C28B9AA9B /* AudioPacketizer.swift in Sources */,
+				70164A6B72EA3B416C2069F1 /* CameraCatalog.swift in Sources */,
 				044616C0A66AAC30A26035E1 /* CaptureEngine.swift in Sources */,
 				F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */,
 				269B9B16E6180D0AABCB5DEA /* ContentView.swift in Sources */,
 				AC881E97AB28962335278ACB /* DatagramSender.swift in Sources */,
+				FD209003A3E0DE806196A6FC /* HardwareEncoderPolicy.swift in Sources */,
+				BD9249D2F98180F2EFF15C8F /* MediaSendQueue.swift in Sources */,
 				CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */,
 				274793FE4C950F1D1B94DFF2 /* Protocol.swift in Sources */,
+				1B36F51A7E3FE38A990E2F13 /* ReceiverDiscovery.swift in Sources */,
 				BFFBD9F3B524A964CCDE78AA /* StreamCoordinator.swift in Sources */,
- ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */,
 				30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */,
+				AC2AD5097F4B1A357C52C070 /* USBMediaSender.swift in Sources */,
 				5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */,
-				ABC021000000000000000001 /* VideoHDRPolicy.swift in Sources */,
-				ABC022000000000000000001 /* HardwareEncoderPolicy.swift in Sources */,
+				1D7E37A91407033FBDEFC666 /* VideoHDRPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -366,7 +377,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -386,7 +397,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -493,7 +504,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -507,7 +518,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ashrafmostafasec.titancam;
@@ -568,10 +579,6 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
-
-
-
-
 	};
 	rootObject = 515ECA14891865A539D5F783 /* Project object */;
 }

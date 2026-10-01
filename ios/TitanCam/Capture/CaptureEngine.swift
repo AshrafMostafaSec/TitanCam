@@ -145,8 +145,12 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             if let sourceID = config.audio_data_source {
                 guard let source = port.dataSources?.first(where: { $0.dataSourceID.uint32Value == sourceID }) else { throw CameraError.unavailable("Selected microphone data source is unavailable") }
                 try port.setPreferredDataSource(source)
+            } else {
+                try port.setPreferredDataSource(nil)
             }
             try audioSession.setPreferredInput(port)
+        } else {
+            try audioSession.setPreferredInput(nil)
         }
         if let port = audioSession.currentRoute.inputs.first {
             let actualSource = port.selectedDataSource?.dataSourceID.uint32Value

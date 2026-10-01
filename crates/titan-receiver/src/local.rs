@@ -101,11 +101,16 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
 ) -> Result<(Arc<Context>, Split<S>)> {
     let usb = cfg.audio_codec == "pcm";
     let mut cfg = hub.desired.lock().unwrap().clone();
+    let switching_to_wifi = !usb && cfg.audio_codec == "pcm";
     cfg.config_id = 1;
     cfg.audio_codec = if usb { "pcm" } else { "opus" }.into();
     if usb {
         cfg.audio_packet_ms = 5;
         cfg.playout_ms = 35;
+    } else if switching_to_wifi {
+        let preset = StreamConfig::profile(&cfg.profile, false);
+        cfg.audio_packet_ms = preset.audio_packet_ms;
+        cfg.playout_ms = preset.playout_ms;
     }
     let permit = slots
         .try_acquire_owned()
@@ -154,6 +159,7 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     *hub.active.lock().unwrap() = Arc::downgrade(&ctx);
+    hub.last_error.lock().unwrap().clear();
     write_control(
         &mut stream,
         &Control::new("MediaReady", &sid, serde_json::json!({})),
@@ -205,11 +211,12 @@ pub async fn run(
                 tokio::spawn(async move {
                     let _handshake=handshake;
                     let result:Result<()> = async {
-                        let (ctx, commands)=negotiate(stream,cfg,outputs,slots,hub).await?;
+                        let (ctx, commands)=negotiate(stream,cfg,outputs,slots,hub.clone()).await?;
                         let _lease=session::Lease(Some(ctx.clone()));
                         ctx.stats.lock().unwrap().transport="Wi-Fi".into(); let id=ctx.id; let config=ctx.config.lock().unwrap().config_id;
                         peers.lock().unwrap().insert(id,Peer { ctx:ctx.clone(),ip:address.ip(),address:None,assembler:Reassembler::new(id,1,config,Duration::from_millis(60)),config,reorder:crate::reorder::Reorder::new(),last_repair:Instant::now() });
-                        let result=super::control_session(ctx,commands.0,commands.1).await;
+                        let result=super::control_session(ctx.clone(),commands.0,commands.1).await;
+                        if let Err(error)=&result {let reason=ctx.stats.lock().unwrap().last_error.clone();*hub.last_error.lock().unwrap()=if reason.is_empty(){error.to_string()}else{reason};}
                         peers.lock().unwrap().remove(&id); result
                     }.await;
                     if let Err(e)=result {tracing::warn!("sender disconnected: {e}");}
@@ -291,7 +298,7 @@ async fn usb_session(
         cfg,
         outputs,
         slots,
-        hub,
+        hub.clone(),
     )
     .await?;
     let _lease = session::Lease(Some(ctx.clone()));
@@ -337,7 +344,16 @@ async fn usb_session(
         });
     }
     ctx.request("Start", serde_json::json!({}));
-    super::control_session(ctx, commands.0, commands.1).await
+    let result = super::control_session(ctx.clone(), commands.0, commands.1).await;
+    if let Err(error) = &result {
+        let reason = ctx.stats.lock().unwrap().last_error.clone();
+        *hub.last_error.lock().unwrap() = if reason.is_empty() {
+            error.to_string()
+        } else {
+            reason
+        };
+    }
+    result
 }
 async fn usb_monitor(
     cfg: StreamConfig,
@@ -375,6 +391,88 @@ async fn usb_monitor(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn live_config_waits_for_correlated_ack_and_rejection_preserves_effective_state() {
+        let slots = Arc::new(Semaphore::new(1));
+        let config = StreamConfig::profile("saver", false);
+        let hub = crate::control_api::Hub::new(config.clone(), true);
+        let (server, mut phone) = tokio::io::duplex(65536);
+        let h = hub.clone();
+        let task = tokio::spawn(async move {
+            let outputs = OutputOptions {
+                preview: false,
+                webcam: None,
+                software: true,
+            };
+            let (ctx, split) = negotiate(server, config, outputs, slots, h).await.unwrap();
+            ctx.live.store(true, Ordering::Release);
+            super::super::control_session(ctx, split.0, split.1).await
+        });
+        let hello = read_control(&mut phone).await.unwrap();
+        write_control(
+            &mut phone,
+            &Control::new(
+                "HelloAck",
+                &hello.session_id,
+                serde_json::json!({"transport_version":2}),
+            ),
+        )
+        .await
+        .unwrap();
+        let mut cfg = read_control(&mut phone).await.unwrap();
+        cfg.kind = "ConfigureAck".into();
+        cfg.body["capabilities"] = serde_json::json!({"live_controls":true});
+        write_control(&mut phone, &cfg).await.unwrap();
+        assert_eq!(read_control(&mut phone).await.unwrap().kind, "MediaReady");
+        let request = crate::control_api::Request {
+            version: 1,
+            id: "gui-camera".into(),
+            command: "SetConfig".into(),
+            body: serde_json::json!({"camera_id":"front","audio_input_id":"builtin","audio_data_source":2}),
+        };
+        let h = hub.clone();
+        let apply = tokio::spawn(async move { h.handle(request).await });
+        let mut command = loop {
+            let cmd = read_control(&mut phone).await.unwrap();
+            if cmd.kind == "Configure" {
+                break cmd;
+            }
+        };
+        assert_ne!(command.request_id, "0");
+        assert_eq!(command.body["camera_id"], "front");
+        assert!(!apply.is_finished());
+        command.kind = "ConfigureAck".into();
+        write_control(&mut phone, &command).await.unwrap();
+        let response = serde_json::to_value(apply.await.unwrap()).unwrap();
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["body"]["audio_data_source"], 2);
+        let h = hub.clone();
+        let reject = tokio::spawn(async move {
+            h.handle(crate::control_api::Request {
+                version: 1,
+                id: "gui-reject".into(),
+                command: "SetConfig".into(),
+                body: serde_json::json!({"camera_id":"missing"}),
+            })
+            .await
+        });
+        let mut command = loop {
+            let cmd = read_control(&mut phone).await.unwrap();
+            if cmd.kind == "Configure" {
+                break cmd;
+            }
+        };
+        command.kind = "ConfigureError".into();
+        command.body = serde_json::json!({"reason":"camera unavailable"});
+        write_control(&mut phone, &command).await.unwrap();
+        assert_eq!(
+            serde_json::to_value(reject.await.unwrap()).unwrap()["ok"],
+            false
+        );
+        assert_eq!(hub.status()["config"]["camera_id"], "front");
+        task.abort();
+        let _ = task.await;
+    }
     #[test]
     fn bootstrap_rejects_oversize_and_incompatible_sender() {
         assert!(Bootstrap::parse(br#"{"version":2,"base":43052}"#, 43052).is_ok());

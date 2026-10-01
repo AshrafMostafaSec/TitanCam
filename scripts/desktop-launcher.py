@@ -10,6 +10,7 @@ import threading
 import time
 import gi
 import importlib.util
+from concurrent.futures import ThreadPoolExecutor
 _control_spec = importlib.util.spec_from_file_location('titancam_control', Path(__file__).with_name('desktop-control.py'))
 _control = importlib.util.module_from_spec(_control_spec)
 _control_spec.loader.exec_module(_control)
@@ -23,6 +24,8 @@ class Application(Gtk.Application):
     def __init__(self):
         super().__init__(application_id='com.ashrafmostafasec.titancam.receiver')
         self.process = None
+        self.process_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix='titancam-process')
+        self.owned_process = None  # Access only from the serialized process worker.
         self.generation = 0
         self.started = 0
         self.gpu_at = 0
@@ -191,7 +194,7 @@ class Application(Gtk.Application):
     def microphone_changed(self, *_):
         if self.syncing or not self.microphones:
             return
-        self.sources = self.microphones[self.microphone.get_selected()].get('sources', [])
+        self.sources = [{'id': None, 'name': 'اختيار النظام'}] + self.microphones[self.microphone.get_selected()].get('sources', [])
         self.dropdown(self.source, [f"{m['name']} · {m.get('location', '')} {m.get('orientation', '')}" for m in self.sources])
         self.source.set_selected(next((i for i, source in enumerate(self.sources) if source['id'] == self.capture_config.get('audio_data_source')), 0))
 
@@ -237,8 +240,10 @@ class Application(Gtk.Application):
 
     def apply_status(self, generation, data):
         self.poll_pending = False
-        if generation != self.generation or data is None:
+        if generation != self.generation:
             return False
+        if data is None:
+            data = {'connected': False}
         self.connected = bool(data.get('connected'))
         self.capture_apply.set_sensitive(self.connected and not self.config_pending)
         self.capture_config = data.get('config', {})
@@ -257,8 +262,10 @@ class Application(Gtk.Application):
             self.syncing = False
             self.camera_changed(); self.microphone_changed()
         if not self.connected:
-            self.status.set_text('الكمبيوتر جاهز — في انتظار الآيفون')
+            self.status.set_text('الكمبيوتر جاهز — في انتظار الآيفون' if self.process and self.process.poll() is None else 'تم إيقاف المستقبل')
             self.metrics.set_text(''); self.gpu.set_text('')
+            if data.get('last_error'):
+                self.action_status.set_text('سبب انقطاع الجلسة: ' + data['last_error'])
         if self.connected:
             cfg = self.capture_config
             stats = data.get('stats', {})
@@ -304,20 +311,45 @@ class Application(Gtk.Application):
         self.generation += 1
         current = self.generation
         env = dict(os.environ, RUST_LOG='info', NO_COLOR='1')
-        try:
-            self.process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
-        except OSError:
-            self.status.set_text('تعذر تشغيل المستقبل؛ تحقق من تثبيت حزمة TitanCam.')
-            return
         self.status.set_text('جاري تجهيز المستقبل…')
         self.metrics.set_text('')
         self.config_pending = False
         self.capability_key = None
-        threading.Thread(target=self.read_output, args=(self.process, current), daemon=True).start()
+        def launch():
+            self.terminate_owned()
+            try:
+                process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+                self.owned_process = process
+                GLib.idle_add(self.launched, current, process)
+            except OSError:
+                GLib.idle_add(self.launch_failed, current)
+        self.process_worker.submit(launch)
+
+    def launched(self, current, process):
+        if current == self.generation:
+            self.process = process
+            threading.Thread(target=self.read_output, args=(process, current), daemon=True).start()
+        return False
+
+    def launch_failed(self, current):
+        if current == self.generation:
+            self.status.set_text('تعذر تشغيل المستقبل؛ تحقق من تثبيت حزمة TitanCam.')
+        return False
 
     def stop(self):
         self.generation += 1
-        process, self.process = self.process, None
+        self.process = None
+        self.connected = False
+        self.process_worker.submit(self.terminate_owned)
+        if hasattr(self, 'capture_apply'):
+            self.capture_apply.set_sensitive(False)
+        if hasattr(self, 'status'):
+            self.status.set_text('تم إيقاف المستقبل')
+            self.metrics.set_text('')
+            self.gpu.set_text('')
+
+    def terminate_owned(self):
+        process, self.owned_process = self.owned_process, None
         if process and process.poll() is None:
             process.send_signal(signal.SIGINT)
             try:
@@ -329,10 +361,6 @@ class Application(Gtk.Application):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
-        if hasattr(self, 'status'):
-            self.status.set_text('تم إيقاف المستقبل')
-            self.metrics.set_text('')
-            self.gpu.set_text('')
 
     def read_output(self, process, current):
         path = STATE / 'desktop-test.log'

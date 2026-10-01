@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::{
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -56,6 +56,7 @@ type PendingConfig = (
     String,
     tokio::sync::oneshot::Sender<Result<StreamConfig, String>>,
 );
+type DecoderCounter = (u64, Arc<AtomicU64>);
 pub struct Context {
     pub created: Instant,
     pub id: [u8; 16],
@@ -69,6 +70,7 @@ pub struct Context {
     pub pending_config: Mutex<Option<PendingConfig>>,
     pub fallback_anchor: Mutex<Option<(u64, u64)>>,
     pub queued_bytes: AtomicUsize,
+    pub decoded_counter: Mutex<Option<DecoderCounter>>,
     pub bound: AtomicBool,
     pub live: AtomicBool,
     pub cancelled: AtomicBool,
@@ -174,6 +176,7 @@ pub fn create(
         pending_config: Mutex::new(None),
         fallback_anchor: Mutex::new(None),
         queued_bytes: AtomicUsize::new(0),
+        decoded_counter: Mutex::new(None),
         bound: AtomicBool::new(false),
         live: AtomicBool::new(false),
         cancelled: AtomicBool::new(false),
@@ -292,22 +295,25 @@ async fn video_worker(
         }
         let decoder_created = video.is_none();
         if decoder_created {
-            let v = Video::new(
-                &config.codec,
-                options.preview,
-                options.webcam.as_deref(),
-                options.software,
-            )
-            .or_else(|error| {
-                tracing::warn!("initial decoder failed, trying CPU: {error}");
+            let codec = config.codec.clone();
+            let output = options.clone();
+            // CUDA/GL initialization may block for hundreds of milliseconds.
+            // Keep it off Tokio workers so audio, ingress and control keep running.
+            let v = tokio::task::spawn_blocking(move || {
                 Video::new(
-                    &config.codec,
-                    options.preview,
-                    options.webcam.as_deref(),
-                    true,
+                    &codec,
+                    output.preview,
+                    output.webcam.as_deref(),
+                    output.software,
                 )
-            })?;
+                .or_else(|error| {
+                    tracing::warn!("initial decoder failed, trying CPU: {error}");
+                    Video::new(&codec, output.preview, output.webcam.as_deref(), true)
+                })
+            })
+            .await??;
             ctx.stats.lock().unwrap().decoder = v.decoder.clone();
+            *ctx.decoded_counter.lock().unwrap() = Some((decoded_base, v.decoded_counter()));
             video = Some(v);
             video_anchor = None;
         }
@@ -323,6 +329,8 @@ async fn video_worker(
                 true,
             )?);
             ctx.stats.lock().unwrap().decoder = video.as_ref().unwrap().decoder.clone();
+            *ctx.decoded_counter.lock().unwrap() =
+                Some((decoded_base, video.as_ref().unwrap().decoded_counter()));
             video_anchor = None;
             waiting_idr = true;
             ctx.request("RequestIDR", serde_json::json!({"reason":"decoder_reset"}));
@@ -336,7 +344,8 @@ async fn video_worker(
             ctx.stats.lock().unwrap().recoveries += 1;
             waiting_idr = false;
         }
-        let (receiver_start, pipeline_start) = *video_anchor.get_or_insert((now, v.running_time()));
+        let (receiver_start, pipeline_start) =
+            *video_anchor.get_or_insert((now_ns(), v.running_time()));
         let pts = pipeline_start.saturating_add(target.saturating_sub(receiver_start));
         if v.push(unit.data, pts, unit.header.duration).is_err() {
             waiting_idr = true;
@@ -393,7 +402,8 @@ async fn audio_worker(ctx: Arc<Context>, mut input: mpsc::Receiver<Unit>) -> Res
         }
         let now = now_ns();
         let target = ctx.presentation_target(&unit, &config, now);
-        if now > target.saturating_add(120_000_000) {
+        // Audio cannot catch up by publishing old packets into a long output ring.
+        if now > target.saturating_add(unit.header.duration as u64) {
             let mut stats = ctx.stats.lock().unwrap();
             stats.dropped += 1;
             stats.late_audio += 1;
@@ -403,7 +413,8 @@ async fn audio_worker(ctx: Arc<Context>, mut input: mpsc::Receiver<Unit>) -> Res
             continue;
         }
         if mic.is_none() {
-            mic = Some(Microphone::new(config.audio_channels)?);
+            let channels = config.audio_channels;
+            mic = Some(tokio::task::spawn_blocking(move || Microphone::new(channels)).await??);
         }
         if opus.is_none() {
             opus = Some(AudioDecoder::new(config.audio_channels)?);
@@ -420,7 +431,14 @@ async fn audio_worker(ctx: Arc<Context>, mut input: mpsc::Receiver<Unit>) -> Res
                         config.audio_channels as usize,
                         &ctx.controls.lock().unwrap(),
                     );
-                    mic.as_mut().unwrap().push(&concealed);
+                    // Advance Opus state, but only queue concealment that fits the
+                    // short output window. The RT callback fills any remaining gap.
+                    if mic.as_ref().unwrap().queued()
+                        + concealed.len() as u32 / config.audio_channels
+                        <= frames + 512
+                    {
+                        mic.as_mut().unwrap().push(&concealed);
+                    }
                     ctx.stats.lock().unwrap().audio_plc += 1;
                 }
             }
@@ -440,7 +458,7 @@ async fn audio_worker(ctx: Arc<Context>, mut input: mpsc::Receiver<Unit>) -> Res
         audio_sequence = Some(unit.header.sequence);
         // Small fill-driven resampling corrects audio-clock drift without changing global PipeWire settings.
         let queued = mic.as_ref().unwrap().queued();
-        if queued > 4800 {
+        if queued > frames + 512 {
             ctx.stats.lock().unwrap().dropped += 1;
             continue;
         }

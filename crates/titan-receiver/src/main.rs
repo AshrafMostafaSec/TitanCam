@@ -215,6 +215,7 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
                 msg=commands.recv()=>{if let Some(msg)=msg{tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&msg)).await??}else{break}},
                 _=feedback.tick()=>{ensure!(!ctx.cancelled.load(Ordering::Acquire),"media session cancelled");if last_control.elapsed()>Duration::from_secs(3){ctx.live.store(false,Ordering::Release);anyhow::bail!("control heartbeat timeout")}let stats={
             let mut stats=ctx.stats.lock().unwrap();
+            if let Some((base,counter))=&*ctx.decoded_counter.lock().unwrap(){stats.decoded_video=base+counter.load(Ordering::Relaxed);}
             let elapsed=previous_decode.0.elapsed().as_secs_f64();
             if elapsed>=1.0 { stats.decoded_fps=stats.decoded_video.saturating_sub(previous_decode.1) as f64/elapsed; previous_decode=(Instant::now(),stats.decoded_video); }
             stats.clone()

@@ -23,16 +23,16 @@ cargo run --locked -p titan-receiver -- doctor --decode --microphone
 ```
 
 Dependency setup uses sudo in your terminal. The receiver runs as your normal user.
-For a release package use `sudo apt install ./titancam_0.2.3_ubuntu26.04_amd64.deb`
+For a release package use `sudo apt install ./titancam_0.3.0_ubuntu26.04_amd64.deb`
 (on Ubuntu 24.04 select the corresponding `ubuntu24.04` package). NVIDIA drivers,
 usbmuxd/device trust and v4l2loopback are separate host dependencies.
 
 After installing the Debian package, open **TitanCam** from the application menu.
 The desktop controller starts immediately and remains available when its window closes.
-It offers profile/output controls and actual receiver counters. The iPhone is a simple
+It offers live profile, camera/lens, supported format, H.264/HEVC and microphone/source selection; volume/mute, horizontal/vertical image transforms and actual receiver counters. The iPhone is a simple
 sender with USB, discovered computer buttons and Stop; there is no phone preview,
 login, pairing code or certificate setup. Local transport is intentionally unencrypted.
-Both ends must run **0.2.0 or newer**; the earlier encrypted app is incompatible.
+Install **matching 0.3.0 builds** on both endpoints for live camera/microphone controls and recovery. The earlier encrypted app is incompatible.
 
 ### Connect
 
@@ -40,7 +40,7 @@ Both ends must run **0.2.0 or newer**; the earlier encrypted app is incompatible
 2. Open the new TitanCam on the iPhone and allow camera/microphone/local network.
 3. For USB, connect/trust the cable and tap **Connect with USB**. For Wi-Fi, use the
    same LAN and tap the computer name that appears.
-4. Keep the phone app open. Choose Saver, Balanced or Maximum on Linux.
+4. Keep the phone app open. Choose Saver, Balanced or Maximum on Linux; apply capture settings and wait for confirmation. The phone can dim its screen, but locking/backgrounding pauses capture.
 
 For CLI use:
 
@@ -65,8 +65,8 @@ Microphone** in OBS/browser audio settings. Use `--mute` or `--software` for dia
 
 The iOS workflow uses **GitHub-hosted macOS 15 + Xcode 16.4**. This Linux PC does
 not need macOS or Xcode. The workflow compiles a physical-device app and runs
-simulator protocol/security tests. Hardware camera, USB and QUIC interoperability
-still need a real phone test.
+simulator protocol, audio conversion and lifecycle tests. Hardware camera, USB and Wi-Fi
+interoperability still need a real phone test.
 
 The default artifact is `TitanCam-unsigned-for-local-resigning.ipa`. It is **not
 installable until re-signed and provisioned**. Import it into the user's local

@@ -1,4 +1,4 @@
-# TitanCam 0.2.3 — local sender and Linux receiver
+# TitanCam 0.3.0 — local sender and Linux receiver
 
 Updated 2026-10-01. Companion contract: [AGENTS.md](AGENTS.md). The owner explicitly requested a simpler trusted-LAN application without authentication, encryption, pairing forms or an iPhone preview. This specification governs implementation; [original research](docs/architecture-original-research.md) retains the earlier sources and experimental design. Transport v2 deliberately supersedes the encrypted alpha.1 application. Install matching new builds on both ends.
 
@@ -224,7 +224,7 @@ Current audit: local `doctor --decode --microphone` decoded 30 generated H.264 f
 
 Foreground dim-screen operation is the supported battery-oriented proposal; ordinary locked/background capture is not promised. Handle interruption and foreground restoration as explicit lifecycle transitions. Public multitasking/PiP capabilities are use-case dependent and do not justify fake VoIP/audio activity. [Apple background interruption](https://developer.apple.com/documentation/avfoundation/avcapturesession/interruptionreason/videodevicenotavailableinbackground).
 
-The improvement plan contains source links, exact file ownership, three operating profiles, latency/quality/thermal budgets, fault matrices, CI/signing requirements and staged release gates. Feature implementation and qualification remain pending beyond the desktop icon/launcher fix.
+The improvement plan contains source links, exact file ownership, three operating profiles, latency/quality/thermal budgets, fault matrices, CI/signing requirements and staged release gates. The implementation below supersedes the original audit; physical qualification remains pending.
 
 
 ## 0.3.0 implementation update
@@ -236,3 +236,6 @@ The defaults now use 35ms USB and 60/70/65ms Balanced/Saver/Maximum capture-time
 Linux capture controls require the phone's live_controls capability. Configuration failure returns ConfigureError and restores the prior capture configuration, while local DSP commands apply without reconfiguration. Hardware route preference can be overridden by iOS; reports show actual source and fallback reason. No unsupported top/bottom mic labels are invented. Camera formats are queried; >=60 FPS or still-sensor resolution is not implicitly supported.
 
 Two-hour physical streaming and glass-to-glass/quality/thermal qualification is deferred by the owner. Synthetic tests and CI are evidence of implementation behavior, not an assurance that every phone/lens/AP sustains 4K60.
+
+
+Implementation refinement: GPU/GL initialization and PipeWire source creation run on the blocking pool so they cannot stall Tokio control/audio/ingress workers. The compressed appsrc window permits at most 8 units, 16MiB and 120ms of queued duration; raw branches remain two-buffer leaky queues. Transform properties update only when direction changes. Audio rejects samples later than one packet duration, bounds concealment/output fill to one packet plus 512 frames, and applies gain on the producer. Feedback samples the actual decoder-output atomic counter directly, including the last frames after ingress stops. USB-to-Wi-Fi switches restore Wi-Fi playout/packet policy while retaining chosen sources. Last session errors survive disconnect in the local GUI status.
