@@ -6,8 +6,8 @@ Debian dependencies are derived from the actual linked library symbol metadata u
 Runner availability: [official Ubuntu 26.04 image](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md). iOS builds on macOS 15 using
 Xcode 16.4; app deployment target iOS 17.4 (hardware-encoder requirement APIs); all Apple compilation occurs on GitHub, never on the user's Linux PC.
 XcodeGen 2.46.0 is checked against the publisher's SHA-256 digest. Opus 1.6.1 source
-is checked out at an exact commit; X509/ASN1/Crypto package versions are pinned.
-The generated Xcode project and package lock are exported in the iOS build artifact.
+is checked out at an exact commit. Local v2 removed certificate/ASN1/crypto packages.
+The generated Xcode project is exported with the iOS build artifact. Bundle version is checked against the release source before packaging.
 
 ## Default: unsigned app for local re-signing
 
@@ -44,6 +44,6 @@ A stable release requires real USB/Wi-Fi sessions, camera hardware-encoder confi
 OBS/browser webcam and microphone checks, interruption/reconnect tests and the documented
 latency/quality/energy qualification. Until then artifacts are labelled development previews.
 
-Simulator test bundles use local ad-hoc simulator signatures (`-`) so Keychain
-entitlements work. This uses no Apple account/certificate and does not sign or provision
+Simulator test bundles use local ad-hoc simulator signatures (`-`) for the hosted
+app test runner. This uses no Apple account/certificate and does not sign or provision
 the physical-device IPA, which remains explicitly unsigned.

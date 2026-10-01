@@ -28,6 +28,8 @@ targets:
       path: TitanCam/Info.plist
       properties:
         CFBundleDisplayName: TitanCam
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSCameraUsageDescription: Stream your camera to your Linux computer.
         NSMicrophoneUsageDescription: Stream your microphone to your Linux computer.
         NSBonjourServices: [_titancam._tcp]

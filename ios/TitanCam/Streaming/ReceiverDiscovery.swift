@@ -32,10 +32,11 @@ final class ReceiverDiscovery: ObservableObject {
         let browser = NWBrowser(for: .bonjourWithTXTRecord(type: "_titancam._tcp", domain: nil), using: parameters)
         self.browser = browser
         browser.browseResultsChangedHandler = { [weak self] results, _ in
-            let found = results.compactMap { result -> DiscoveredReceiver? in
+            let records = results.compactMap { result -> DiscoveredReceiver? in
                 guard case .service(let name, _, _, _) = result.endpoint, case .bonjour(let txt) = result.metadata else { return nil }
                 return DiscoveredReceiver(name: name, fields: txt.dictionary)
-            }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            }
+            let found = Dictionary(records.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             DispatchQueue.main.async { [weak self] in self?.receivers = found; self?.message = found.isEmpty ? "No computer found yet. Keep TitanCam open on Linux and use the same Wi-Fi." : "Choose your computer to connect." }
         }
         browser.stateUpdateHandler = { [weak self] state in

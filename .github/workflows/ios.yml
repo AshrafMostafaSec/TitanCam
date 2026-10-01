@@ -21,7 +21,7 @@ jobs:
         run: ./scripts/build-opus-ios.sh
       - name: Device compile (unsigned for local signing)
         run: ./scripts/build-ios.sh device-unsigned
-      - name: Simulator protocol and security tests
+      - name: Simulator protocol and local transport tests
         run: ./scripts/build-ios.sh simulator
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

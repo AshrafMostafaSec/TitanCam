@@ -23,6 +23,9 @@ case "$mode" in
     ;;
   device-unsigned)
     xcodebuild "${common[@]}" -sdk iphoneos -destination 'generic/platform=iOS' build
+    expected_version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+    bundle_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' build/DerivedData/Build/Products/Release-iphoneos/TitanCam.app/Info.plist)"
+    [[ "$bundle_version" == "$expected_version" ]] || { echo 'iOS artifact version does not match the release source' >&2; exit 1; }
     mkdir -p build/unsigned/Payload
     cp -R build/DerivedData/Build/Products/Release-iphoneos/TitanCam.app build/unsigned/Payload/
     { cat LICENSE build/OPUS-LICENSE.txt; for dependency in build/DerivedData/SourcePackages/checkouts/*; do
