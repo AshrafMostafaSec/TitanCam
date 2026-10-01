@@ -158,3 +158,13 @@ while the producer is attached. The presence of /dev/video42 alone does not mean
 camera data is arriving. Keep normal-user access and the existing one-decode pipeline.
 
 [libusbmuxd daemon connection implementation](https://github.com/libimobiledevice/libusbmuxd/blob/master/src/libusbmuxd.c), [v4l2loopback exclusive capabilities](https://github.com/v4l2loopback/v4l2loopback#options).
+
+### Decoder and preview runtime feature checks
+
+Load/construct the decoder plugin before trusting a cached registry factory, which
+can remain present after the NVIDIA driver becomes unavailable. Query optional
+properties on actual elements. In particular autovideosink is a selection bin and
+does not implement every GstBaseSink property; pass sync/qos/max-lateness only when
+supported. Keep the bounded preview queue in both hardware and CPU paths. A real
+GStreamer parsing regression covers that fallback bin without requiring a display
+on CI. NVDEC remains preferred when loadable; report CPU fallback honestly.

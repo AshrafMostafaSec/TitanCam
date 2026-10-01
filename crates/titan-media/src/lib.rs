@@ -105,6 +105,18 @@ pub struct Video {
     source: app::AppSrc,
     pub decoder: String,
 }
+fn load_element(name: &str) -> Option<gst::Element> {
+    // A cached factory can remain registered after its GPU/plugin becomes
+    // unavailable. Load and construct it before trusting the registry entry.
+    gst::ElementFactory::make(name).build().ok()
+}
+fn optional_properties(element: &gst::Element, properties: &[(&str, &str)]) -> String {
+    properties
+        .iter()
+        .filter(|(name, _)| element.find_property(name).is_some())
+        .map(|(name, value)| format!(" {name}={value}"))
+        .collect()
+}
 impl Video {
     pub fn new(codec: &str, preview: bool, webcam: Option<&str>, software: bool) -> Result<Self> {
         gst::init()?;
@@ -114,20 +126,36 @@ impl Video {
         } else {
             ("h264parse", "nvh264dec", "avdec_h264", "video/x-h264")
         };
-        let decoder = if !software && gst::ElementFactory::find(hardware).is_some() {
+        let hardware_element = if software {
+            None
+        } else {
+            load_element(hardware)
+        };
+        let decoder = if hardware_element.is_some() {
             hardware
         } else {
             cpu
         };
-        let settings = if decoder == hardware {
-            " max-display-delay=0 num-output-surfaces=0 discard-corrupted-frames=true"
-        } else {
-            ""
-        };
+        let settings = hardware_element
+            .as_ref()
+            .map_or_else(String::new, |element| {
+                optional_properties(
+                    element,
+                    &[
+                        ("max-display-delay", "0"),
+                        ("num-output-surfaces", "0"),
+                        ("discard-corrupted-frames", "true"),
+                    ],
+                )
+            });
         let mut branches = String::new();
         if preview {
-            let sink = if decoder == hardware && gst::ElementFactory::find("glimagesink").is_some()
-            {
+            let gl_sink = if decoder == hardware {
+                load_element("glimagesink")
+            } else {
+                None
+            };
+            let sink = if gl_sink.is_some() {
                 "glimagesink"
             } else {
                 "autovideosink"
@@ -137,7 +165,18 @@ impl Video {
             } else {
                 "videoconvert ! "
             };
-            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! {conversion}{sink} sync=true qos=true max-lateness=20000000 "));
+            let sink_element = gl_sink
+                .or_else(|| load_element("autovideosink"))
+                .ok_or_else(|| anyhow::anyhow!("preview sink unavailable"))?;
+            let sink_settings = optional_properties(
+                &sink_element,
+                &[
+                    ("sync", "true"),
+                    ("qos", "true"),
+                    ("max-lateness", "20000000"),
+                ],
+            );
+            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! {conversion}{sink}{sink_settings} "));
         }
         if let Some(device) = webcam {
             ensure!(
@@ -228,7 +267,7 @@ pub fn decode_probe() -> Result<String> {
     } else {
         "openh264enc"
     };
-    let decoder = if gst::ElementFactory::find("nvh264dec").is_some() {
+    let decoder = if load_element("nvh264dec").is_some() {
         "nvh264dec"
     } else {
         "avdec_h264"
@@ -266,4 +305,33 @@ pub fn microphone_probe() -> Result<String> {
         mic.queued(),
         mic.underruns()
     ))
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn auto_preview_bin_only_receives_properties_it_supports() {
+        gst::init().unwrap();
+        let sink = load_element("autovideosink").unwrap();
+        let settings = optional_properties(
+            &sink,
+            &[
+                ("sync", "true"),
+                ("qos", "true"),
+                ("max-lateness", "20000000"),
+                ("not-a-real-property", "1"),
+            ],
+        );
+        assert!(settings.contains("sync=true"));
+        assert!(!settings.contains("not-a-real-property"));
+        // Actual GStreamer parsing catches properties that apply to a base sink
+        // but are not implemented by the automatic-selection bin.
+        assert!(
+            gst::parse::launch(&format!(
+                "videotestsrc num-buffers=1 ! autovideosink{settings}"
+            ))
+            .is_ok()
+        );
+    }
 }
