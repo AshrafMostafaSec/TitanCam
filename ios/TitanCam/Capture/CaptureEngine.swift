@@ -12,6 +12,7 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     private(set) var effective = StreamConfig()
     private var camera: AVCaptureDevice?
     private var configured = false
+    private var captureSessionID = Data()
     private var observers: [NSObjectProtocol] = []
     static var hostTime: UInt64 { let t = CMTimeConvertScale(CMClockGetTime(CMClockGetHostTimeClock()), timescale: 1_000_000_000, method: .default); return UInt64(max(0, t.value)) }
     override init() {
@@ -46,7 +47,7 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             try self.encoder.queue.sync { try self.encoder.configure(config, session: sessionID) }; try self.audioQueue.sync { try self.audio.configure(config, session: sessionID) }
             config.encoder_hardware_evidence = self.encoder.hardwareEvidence
             config.encoder_hardware_query_status = Int(self.encoder.hardwareQueryStatus)
-            self.effective = config; if !running { self.epoch = Self.hostTime }; completion(.success(config))
+            self.effective = config; if self.captureSessionID != sessionID { self.epoch = Self.hostTime; self.captureSessionID = sessionID }; completion(.success(config))
             // Resume only after the receiver acknowledges the new configuration.
         } catch { completion(.failure(error)) } }
     }
@@ -57,6 +58,14 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
         device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
         VideoHDRPolicy.applySDR(to: device)
+    }
+    func adjustBitrate(_ bitrate: Int, completion: @escaping (Result<StreamConfig, Error>) -> Void) {
+        queue.async {
+            do {
+                try self.encoder.queue.sync { try self.encoder.setBitrate(bitrate) }
+                self.effective.bitrate = bitrate; completion(.success(self.effective))
+            } catch { completion(.failure(error)) }
+        }
     }
     func start() { queue.async { self.session.startRunning() } }
     func stop() { queue.async { if self.session.isRunning { self.session.stopRunning() }; self.encoder.stop(); try? AVAudioSession.sharedInstance().setActive(false) } }

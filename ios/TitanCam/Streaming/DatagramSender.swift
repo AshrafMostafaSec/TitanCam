@@ -1,52 +1,91 @@
 import Foundation
 import Network
 final class DatagramSender {
-    struct Pending { let unit: EncodedUnit; var offset: Int; let created: UInt64 }
     private let connection: NWConnection
     private let queue: DispatchQueue
-    private var video: [Pending] = []
-    private var audio: [Pending] = []
+    private var video = MediaSendQueue(video: true)
+    private var audio = MediaSendQueue(video: false)
+    private var pacer = MediaPacer()
     private var timer: DispatchSourceTimer?
     private var binding: Data?
     private var bindingAt: UInt64 = 0
     private var inFlight = 0
-    private var tokens: Double = 0
-    private var last: UInt64 = CaptureEngine.hostTime
     private var pacingMilliseconds = 2
-    private var budget: Double = 2_000_000
+    private var stopped = false
+    private var ready = false
+    private var lossAt: UInt64 = 0
     var dropped: (() -> Void)?
     init(host: String, port: UInt16, queue: DispatchQueue) {
         self.queue = queue
         connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: .udp)
     }
     func start(session: Data, token: Data, ready: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        connection.stateUpdateHandler = { [weak self] state in guard let self else { return }; switch state { case .ready:
-            var binding = Data("TCMB".utf8); binding.append(1); binding.append(session); binding.appendBE(UInt32(1)); binding.append(token)
-            self.binding = binding; self.bindingAt = CaptureEngine.hostTime
-            self.connection.send(content: binding, completion: .contentProcessed { error in if let error { failure(error) } else { ready() } }); self.receive()
-            let timer = DispatchSource.makeTimerSource(queue: self.queue); timer.schedule(deadline: .now(), repeating: .milliseconds(self.pacingMilliseconds), leeway: .microseconds(100)); timer.setEventHandler { [weak self] in self?.pump() }; self.timer = timer; timer.resume()
-        case .failed(let error): failure(error); case .cancelled: failure(nil); default: break } }; connection.start(queue: queue)
+        connection.stateUpdateHandler = { [weak self] state in
+            guard let self, !self.stopped else { return }
+            switch state {
+            case .ready:
+                guard !self.ready else { return }; self.ready = true
+                var binding = Data("TCMB".utf8); binding.append(1); binding.append(session); binding.appendBE(UInt32(1)); binding.append(token)
+                self.binding = binding; self.bindingAt = CaptureEngine.hostTime
+                self.connection.send(content: binding, completion: .contentProcessed { [weak self] error in
+                    guard let self, !self.stopped else { return }
+                    if let error { self.stop(); failure(error) } else { ready() }
+                })
+                let timer = DispatchSource.makeTimerSource(queue: self.queue)
+                timer.schedule(deadline: .now(), repeating: .milliseconds(self.pacingMilliseconds), leeway: .microseconds(100))
+                timer.setEventHandler { [weak self] in self?.pump() }; self.timer = timer; timer.resume()
+            case .failed(let error): self.stop(); failure(error)
+            case .cancelled: self.stop(); failure(nil)
+            default: break
+            }
+        }; connection.start(queue: queue)
     }
     func bound() { binding = nil }
-    func configure(_ config: StreamConfig) { budget = (Double(config.bitrate) * 1.10 + 400_000) / 8; pacingMilliseconds = config.profile == "saver" ? 5 : config.profile == "maximum" ? 1 : 2; timer?.schedule(deadline: .now(), repeating: .milliseconds(pacingMilliseconds), leeway: .microseconds(100)) }
-    func enqueue(_ unit: EncodedUnit) { let pending = Pending(unit: unit, offset: 0, created: CaptureEngine.hostTime)
-        if unit.kind == 1 { if video.count >= 2 { video.removeAll(keepingCapacity: true); dropped?(); if !unit.independent { return } }; video.append(pending) }
-        else { if audio.count >= 10 { audio.removeAll(keepingCapacity: true) }; audio.append(pending) }
+    func configure(_ config: StreamConfig) {
+        pacer.configure(bitrate: config.bitrate)
+        pacingMilliseconds = config.profile == "saver" ? 5 : config.profile == "maximum" ? 1 : 2
+        timer?.schedule(deadline: .now(), repeating: .milliseconds(pacingMilliseconds), leeway: .microseconds(100))
     }
-    private func receive() { connection.receiveMessage { [weak self] _, _, _, error in if error == nil { self?.receive() } } }
+    func enqueue(_ unit: EncodedUnit) {
+        guard !stopped else { return }; let now = CaptureEngine.hostTime
+        let lost = unit.kind == 1 ? video.enqueue(unit, now: now) : audio.enqueue(unit, now: now)
+        if lost { reportLoss(now: now) }
+        pump()
+    }
+    private func reportLoss(now: UInt64) {
+        guard lossAt == 0 || now - lossAt >= 250_000_000 else { return }
+        lossAt = now; dropped?()
+    }
     private func pump() {
-        let now = CaptureEngine.hostTime; if let binding, now - bindingAt > 100_000_000 { bindingAt = now; connection.send(content: binding, completion: .contentProcessed { _ in }) }; tokens = min(budget * 0.02, tokens + Double(now - last) / 1e9 * budget); last = now
-        if let old = video.first, now - old.created > 100_000_000 { video.removeAll(keepingCapacity: true); dropped?() }
-        for _ in 0..<8 {
-            guard inFlight < 8 else { return }; let isAudio = !audio.isEmpty; guard isAudio || !video.isEmpty else { return }
-            var current = isAudio ? audio.removeFirst() : video.removeFirst(); let size = min(1_036, current.unit.bytes.count - current.offset)
-            guard tokens >= Double(size + 64) else { if isAudio { audio.insert(current, at: 0) } else { video.insert(current, at: 0) }; return }
-            let count = (current.unit.bytes.count + 1_035) / 1_036; guard count <= 16_384 else { dropped?(); continue }
-            let packet = current.unit.packet(index: UInt16(current.offset / 1_036), count: UInt16(count), offset: current.offset, length: size); current.offset += size
-            if current.offset < current.unit.bytes.count { if isAudio { audio.insert(current, at: 0) } else { video.insert(current, at: 0) } }
-            tokens -= Double(packet.count); inFlight += 1; connection.send(content: packet, completion: .contentProcessed { [weak self] error in guard let self else { return }; self.inFlight -= 1; if error != nil { self.video.removeAll(); self.dropped?() } })
+        guard ready, !stopped else { return }; let now = CaptureEngine.hostTime
+        if let binding, now - bindingAt > 100_000_000 {
+            bindingAt = now; connection.send(content: binding, completion: .contentProcessed { _ in })
+        }
+        pacer.advance(now: now)
+        if video.expire(now: now) { reportLoss(now: now) }; _ = audio.expire(now: now)
+        // Per-turn cap is no longer the stream's bitrate limit. Send completions
+        // refill the bounded flight window, while both token buckets still apply.
+        for _ in 0..<128 {
+            guard inFlight < 32 else { return }
+            let isAudio = audio.first != nil
+            guard let current = isAudio ? audio.first : video.first else { return }
+            let size = min(1_036, current.unit.bytes.count - current.offset)
+            guard pacer.take(bytes: size + 64, audio: isAudio) else { return }
+            let count = (current.unit.bytes.count + 1_035) / 1_036
+            let packet = current.unit.packet(index: UInt16(current.offset / 1_036), count: UInt16(count), offset: current.offset, length: size)
+            if isAudio { audio.consume(size) } else { video.consume(size) }
+            inFlight += 1
+            connection.send(content: packet, completion: .contentProcessed { [weak self] error in
+                guard let self, !self.stopped else { return }; self.inFlight -= 1
+                if error != nil { self.video.lose(); self.reportLoss(now: CaptureEngine.hostTime) }
+                self.pump()
+            })
         }
     }
-    func stop() { timer?.cancel(); timer = nil; connection.cancel(); video.removeAll(); audio.removeAll() }
-    deinit { timer?.cancel(); connection.cancel() }
+    func stop() {
+        guard !stopped else { return }; stopped = true
+        timer?.cancel(); timer = nil; connection.stateUpdateHandler = nil
+        connection.cancel(); video.lose(); audio.lose(); dropped = nil
+    }
+    deinit { timer?.cancel(); connection.stateUpdateHandler = nil; connection.cancel() }
 }

@@ -189,7 +189,7 @@ class Application(Gtk.Application):
                 text = f'إنفيديا: استخدام عام {values[0].strip()}% · فك الفيديو {values[1].strip()}% · {values[2].strip()} وات'
                 GLib.idle_add(self.gpu.set_text, text)
         except (OSError, subprocess.SubprocessError, ValueError, IndexError):
-            pass
+            GLib.idle_add(self.gpu.set_text, "NVIDIA غير متاح حاليًا — يلزم فحص التعريف قبل اختبار 4K.")
         finally:
             self.gpu_pending = False
 
@@ -210,7 +210,9 @@ class Application(Gtk.Application):
                         threading.Thread(target=self.query_gpu, daemon=True).start()
                     if video and audio:
                         self.status.set_text('الصورة والصوت يصلان من الهاتف — ' + str(data.get('profile', '')))
-                    self.metrics.set_text(f"فريمات الفيديو: {video} · حزم الصوت: {audio}\nDecoder: {data.get('decoder', '—')} · dropped: {data.get('dropped', 0)}")
+                    decoder = str(data.get("decoder", ""))
+                    device = "الاستقبال على NVIDIA GPU" if decoder.startswith("nv") else "الاستقبال على CPU مؤقتًا"
+                    self.metrics.set_text(device + f"\nفريمات الفيديو: {video} · حزم الصوت: {audio}\nDecoder: {data.get('decoder', '—')} · dropped: {data.get('dropped', 0)}")
             except (OSError, ValueError):
                 pass
             if not path.exists() or time.time() - path.stat().st_mtime > 2.5:

@@ -40,6 +40,12 @@ final class VideoEncoder {
         hardwareEvidence = try HardwareEncoderPolicy.evidence(requiredHardware: true, queryStatus: hardwareQueryStatus, value: hardware)
         NSLog("TitanCam encoder hardware evidence=%@ query_status=%d", hardwareEvidence, hardwareQueryStatus)
     }
+    func setBitrate(_ bitrate: Int) throws {
+        guard let encoder else { throw CameraError.unavailable("Encoder is not configured") }
+        let status = VTSessionSetProperty(encoder, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: bitrate))
+        guard status == noErr else { throw CameraError.unavailable("Bitrate update rejected (\(status))") }
+        config.bitrate = bitrate
+    }
     func encode(_ sample: CMSampleBuffer, pts: UInt64) {
         guard let encoder, let pixel = CMSampleBufferGetImageBuffer(sample) else { return }
         if !colorApplied {

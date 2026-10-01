@@ -9,8 +9,8 @@ settings:
     SWIFT_VERSION: '5.0'
     SWIFT_STRICT_CONCURRENCY: minimal
     PRODUCT_BUNDLE_IDENTIFIER: com.ashrafmostafasec.titancam
-    MARKETING_VERSION: '0.2.2'
-    CURRENT_PROJECT_VERSION: '5'
+    MARKETING_VERSION: '0.2.3'
+    CURRENT_PROJECT_VERSION: '6'
     TARGETED_DEVICE_FAMILY: '1'
     HEADER_SEARCH_PATHS: '$(SRCROOT)/../build/opus-headers'
 targets:

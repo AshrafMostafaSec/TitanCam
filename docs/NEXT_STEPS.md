@@ -23,4 +23,4 @@ Maximum 4K60/HEVC, exact latency, long-session stability and quality/energy targ
 remain unqualified. Repair/FEC, front camera/HDR, IPv6/interface selection and recording
 are later work. No media recording/upload is enabled.
 
-0.2.2 corrects the local usbmuxd Unix-socket adapter and the optional encoder hardware query. Install iPhone 0.2.2 build 5 and the updated Linux receiver for USB testing. A virtual webcam becomes a capture source while actual video is being fed.
+0.2.3 corrects the local usbmuxd Unix-socket adapter and the optional encoder hardware query. Install iPhone 0.2.3 build 6 and the updated Linux receiver for USB testing. A virtual webcam becomes a capture source while actual video is being fed.

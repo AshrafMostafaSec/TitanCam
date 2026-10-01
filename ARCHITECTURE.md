@@ -1,4 +1,4 @@
-# TitanCam 0.2.2 — local sender and Linux receiver
+# TitanCam 0.2.3 — local sender and Linux receiver
 
 Updated 2026-10-01. Companion contract: [AGENTS.md](AGENTS.md). The owner explicitly requested a simpler trusted-LAN application without authentication, encryption, pairing forms or an iPhone preview. This specification governs implementation; [original research](docs/architecture-original-research.md) retains the earlier sources and experimental design. Transport v2 deliberately supersedes the encrypted alpha.1 application. Install matching new builds on both ends.
 
@@ -74,9 +74,9 @@ One output semaphore is retained by the media worker until all video/audio resou
 
 Each datagram is ≤1100 bytes: a 64-byte TCAM header plus ≤1036 payload bytes. Fragment fields retain original access-unit length, index/count/offset, session, transport epoch and configuration ID. Validate lengths/overlaps before allocation. Reassembler rejects stale sessions/configs, handles duplicate/out-of-order fragments, and expires incomplete units after 60 ms. No unbounded retransmission or delayed TCP-media fallback is used.
 
-The sender prioritizes audio, spaces video fragments with a bitrate token bucket, bounds outstanding send completions to eight, queues at most two video units and ten audio units, and abandons stale video after 100 ms. Dropping dependent video triggers a fresh IDR. Feedback every 100 ms reports actual accepted frames, expiry, drops, decoder, queue and clock statistics. Losing a reference frame requires decoder flush/wait-IDR recovery; do not continue corrupt dependent pictures.
+The sender prioritizes audio, spaces video fragments with a bitrate token bucket, bounds outstanding send completions to 32, queues at most three video units and ten audio units, and abandons stale video after 100 ms. Dropping dependent video triggers a fresh IDR. Feedback every 100 ms reports actual accepted frames, expiry, drops, decoder, queue and clock statistics. Losing a reference frame requires decoder flush/wait-IDR recovery; do not continue corrupt dependent pictures.
 
-Plain UDP has no QUIC congestion controller: the app's pacing, feedback-driven bitrate reduction and bounded deadlines are the current LAN controls. There is no promise to deliver every live frame. Selective repair/FEC and calibrated congestion/impairment matrices remain further qualification work. USB uses reliable TCP but closes a stale/overrun media channel to restore freshness.
+Plain UDP has no QUIC congestion controller: the app's pacing, feedback-driven bitrate reduction and bounded deadlines are the current LAN controls. There is no promise to deliver every live frame. Selective repair/FEC and calibrated congestion/impairment matrices remain further qualification work. USB uses reliable TCP with one outstanding video/audio unit per channel plus bounded fresh queues. Temporary overload abandons queued dependent video, waits for an IDR, and keeps control connected; actual socket failures still reconnect.
 
 ## NVIDIA efficiency and Linux outputs
 
@@ -168,3 +168,44 @@ does not implement every GstBaseSink property; pass sync/qos/max-lateness only w
 supported. Keep the bounded preview queue in both hardware and CPU paths. A real
 GStreamer parsing regression covers that fallback bin without requiring a display
 on CI. NVDEC remains preferred when loadable; report CPU fallback honestly.
+
+## Streaming stability correction (0.2.3)
+
+The old eight-fragment pump imposed an unintended payload ceiling of 1.66 / 4.14 /
+8.29 Mbit/s with 5 / 2 / 1 ms timer periods, below all three configured rates.
+The sender retains the 5 / 2 / 1 ms profile timer periods, with a 32-send completion window and a 128-packet
+work cap per pump. Completions continue pumping; token budgets, not a fixed packet
+count per tick, constrain throughput. Average wire budget is `(1.10 × bitrate +
+400000) / 8` bytes/s, with a 250 ms credit capped at 2 MB. Peak budget is four times
+average, capped at 40 MB/s, with 5 ms credit. This gives bounded IDR burst headroom,
+reserves 4096 bytes for audio and avoids multi-second sender backlog. Frames still
+expire at 100 ms and receiver fragment expiry remains 60 ms; oversized bursts or
+insufficient LAN capacity cause explicit GOP recovery rather than unlimited buffering.
+Simulator policy tests exercise 100 kB / 300 kB / 1 MB access units at profile rates;
+these are scheduling evidence, not physical Wi-Fi or hardware codec qualification.
+
+Overflow preserves a partly submitted head access unit, removes queued dependent
+pictures and waits for an IDR. IDR requests are limited to one per 250 ms. USB uses
+one access unit submitted to Network.framework at a time and at most three queued
+video / ten queued audio units, each with size/age bounds. Normal queue pressure
+no longer closes USB control. UDP intentional stop suppresses stale callbacks,
+and coordinator callbacks verify the currently owned sender before affecting state.
+
+Bitrate-only adaptation changes the existing hardware compression session property
+without stopping capture or changing config ID/timeline. Actual media-format changes
+remain acknowledged transactions with a new config ID. Configuration transactions
+cannot overlap. Capture epoch changes only for a new transport session, so an
+adaptation performed while capture is paused cannot unexpectedly reset timestamps.
+Apple documents AverageBitRate as a desired long-term average, not a peak cap:
+[AverageBitRate](https://developer.apple.com/documentation/videotoolbox/kvtcompressionpropertykey_averagebitrate).
+Network send completions indicate stack processing, not remote delivery:
+[SendCompletion](https://developer.apple.com/documentation/network/nwconnection/sendcompletion).
+
+Physical 0.2.2 Saver Wi-Fi observation on 2026-10-01: 1760 accepted video units in
+60 seconds (about 29.3/s), no increase in expired, dropped or missing units during
+that interval, but ten decoder recoveries consistent with repeated adaptation
+reconfiguration. These counters measure accepted compressed frames, not displayed
+FPS or glass-to-glass delay. NVIDIA was unavailable (`nvidia-smi`: no devices); CPU
+`avdec_h264` was active. A targeted driver bind remained blocked in the kernel.
+A clean restart and an actual `nvh264dec` session are required to qualify GPU reception.
+4K60 is still experimental and has not passed sustained qualification.
