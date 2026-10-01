@@ -46,6 +46,7 @@ pub struct Stats {
     pub late_audio: u64,
     pub transport: String,
     pub last_error: String,
+    pub sender_stats: serde_json::Value,
 }
 pub fn now_ns() -> u64 {
     use std::sync::OnceLock;
@@ -67,6 +68,8 @@ pub struct Context {
     pub audio_units: mpsc::Sender<Unit>,
     pub controls: Arc<Mutex<Controls>>,
     pub capabilities: Mutex<serde_json::Value>,
+    pub sender_info: Mutex<serde_json::Value>,
+    pub prepared_video: Mutex<Option<(u32, Video)>>,
     pub pending_config: Mutex<Option<PendingConfig>>,
     pub fallback_anchor: Mutex<Option<(u64, u64)>>,
     pub queued_bytes: AtomicUsize,
@@ -173,6 +176,8 @@ pub fn create(
         audio_units,
         controls,
         capabilities: Mutex::new(serde_json::json!({})),
+        sender_info: Mutex::new(serde_json::json!({})),
+        prepared_video: Mutex::new(None),
         pending_config: Mutex::new(None),
         fallback_anchor: Mutex::new(None),
         queued_bytes: AtomicUsize::new(0),
@@ -204,6 +209,30 @@ pub fn create(
         }
     });
     (ctx, rx)
+}
+pub async fn prepare_video(ctx: &Arc<Context>, options: OutputOptions) -> Result<()> {
+    let config = ctx.config.lock().unwrap().clone();
+    let v = tokio::task::spawn_blocking(move || {
+        Video::new(
+            &config.codec,
+            options.preview,
+            options.webcam.as_deref(),
+            options.software,
+        )
+        .or_else(|error| {
+            tracing::warn!("initial decoder failed, trying CPU: {error}");
+            Video::new(
+                &config.codec,
+                options.preview,
+                options.webcam.as_deref(),
+                true,
+            )
+        })
+        .map(|video| (config.config_id, video))
+    })
+    .await??;
+    *ctx.prepared_video.lock().unwrap() = Some(v);
+    Ok(())
 }
 async fn video_worker(
     ctx: Arc<Context>,
@@ -299,19 +328,29 @@ async fn video_worker(
             let output = options.clone();
             // CUDA/GL initialization may block for hundreds of milliseconds.
             // Keep it off Tokio workers so audio, ingress and control keep running.
-            let v = tokio::task::spawn_blocking(move || {
-                Video::new(
-                    &codec,
-                    output.preview,
-                    output.webcam.as_deref(),
-                    output.software,
-                )
-                .or_else(|error| {
-                    tracing::warn!("initial decoder failed, trying CPU: {error}");
-                    Video::new(&codec, output.preview, output.webcam.as_deref(), true)
+            let prepared = ctx
+                .prepared_video
+                .lock()
+                .unwrap()
+                .take()
+                .filter(|(id, _)| *id == config.config_id);
+            let v = if let Some((_, v)) = prepared {
+                v
+            } else {
+                tokio::task::spawn_blocking(move || {
+                    Video::new(
+                        &codec,
+                        output.preview,
+                        output.webcam.as_deref(),
+                        output.software,
+                    )
+                    .or_else(|error| {
+                        tracing::warn!("initial decoder failed, trying CPU: {error}");
+                        Video::new(&codec, output.preview, output.webcam.as_deref(), true)
+                    })
                 })
-            })
-            .await??;
+                .await??
+            };
             ctx.stats.lock().unwrap().decoder = v.decoder.clone();
             *ctx.decoded_counter.lock().unwrap() = Some((decoded_base, v.decoded_counter()));
             video = Some(v);

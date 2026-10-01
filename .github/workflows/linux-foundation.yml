@@ -31,6 +31,7 @@ jobs:
         run: |
           ./target/release/titan-bench --healthy --fps 60 > build-healthy-report.json
           ./target/release/titan-bench --repair --fps 60 > build-repair-report.json
+          ./target/release/titan-bench --healthy --codec hevc --fps 60 > build-hevc-report.json
       - name: Package receiver
         run: ./scripts/package-linux.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -41,4 +42,5 @@ jobs:
             build-synthetic-report.json
             build-healthy-report.json
             build-repair-report.json
+            build-hevc-report.json
           if-no-files-found: error

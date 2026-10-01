@@ -287,6 +287,8 @@ pub struct StreamConfig {
     pub audio_channels: u32,
     pub audio_packet_ms: u32,
     pub playout_ms: u32,
+    #[serde(default = "default_wifi_budget")]
+    pub wifi_budget_mbps: u32,
     #[serde(default)]
     pub camera_id: Option<String>,
     #[serde(default)]
@@ -295,6 +297,9 @@ pub struct StreamConfig {
     pub audio_data_source: Option<u32>,
     #[serde(default)]
     pub fallback_reason: Option<String>,
+}
+fn default_wifi_budget() -> u32 {
+    35
 }
 impl StreamConfig {
     pub fn profile(name: &str, usb: bool) -> Self {
@@ -315,10 +320,29 @@ impl StreamConfig {
             audio_channels: 1,
             audio_packet_ms: if usb { 5 } else { a },
             playout_ms: if usb { 35 } else { p },
+            wifi_budget_mbps: default_wifi_budget(),
             camera_id: None,
             audio_input_id: None,
             audio_data_source: None,
             fallback_reason: None,
+        }
+    }
+    pub fn select_codec(&mut self, codec: &str) {
+        self.codec = codec.into();
+        if codec == "hevc" {
+            self.bitrate = match self.profile.as_str() {
+                "saver" => 3_000_000,
+                "maximum" => 24_000_000,
+                _ => 8_000_000,
+            };
+        }
+    }
+    pub fn constrain_wifi(&mut self) {
+        let ceiling = (self.wifi_budget_mbps * 1_000_000 - 400_000) / 110 * 100;
+        if self.bitrate > ceiling {
+            self.bitrate = ceiling;
+            self.fallback_reason =
+                Some("Video rate limited to the selected Wi-Fi wire budget".into());
         }
     }
     pub fn validate(&self) -> bool {
@@ -335,6 +359,7 @@ impl StreamConfig {
             && (1..=2).contains(&self.audio_channels)
             && [5, 10, 20].contains(&self.audio_packet_ms)
             && self.playout_ms <= 100
+            && (5..=200).contains(&self.wifi_budget_mbps)
             && self
                 .camera_id
                 .as_ref()
@@ -458,5 +483,33 @@ mod tests {
         let h = MediaHeader::parse(&b).unwrap();
         assert_eq!(h.encode().as_slice(), fixture);
         assert_eq!(h.pts, 123);
+    }
+}
+
+#[cfg(test)]
+mod wifi_budget_tests {
+    use super::*;
+    #[test]
+    fn codec_presets_and_wifi_ceiling_leave_wire_headroom() {
+        let mut config = StreamConfig::profile("maximum", false);
+        config.constrain_wifi();
+        assert_eq!(config.fps, 60);
+        assert_eq!(config.width, 3840);
+        assert!(config.bitrate < 32_000_000);
+        assert!(config.bitrate as f64 * 1.1 + 400_000.0 <= 35_000_000.0);
+        assert!(config.fallback_reason.is_some());
+        config = StreamConfig::profile("maximum", false);
+        config.select_codec("hevc");
+        config.constrain_wifi();
+        assert_eq!(config.bitrate, 24_000_000);
+        assert!(config.validate());
+        let mut value = serde_json::to_value(&config).unwrap();
+        value.as_object_mut().unwrap().remove("wifi_budget_mbps");
+        assert_eq!(
+            serde_json::from_value::<StreamConfig>(value)
+                .unwrap()
+                .wifi_budget_mbps,
+            35
+        );
     }
 }

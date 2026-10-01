@@ -112,13 +112,17 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         cfg.audio_packet_ms = preset.audio_packet_ms;
         cfg.playout_ms = preset.playout_ms;
     }
+    if cfg.audio_codec == "opus" {
+        cfg.constrain_wifi();
+    }
     let permit = slots
         .try_acquire_owned()
         .context("receiver busy with another session")?;
-    let (ctx, commands) = session::create(cfg.clone(), outputs, permit, hub.controls.clone());
+    let (ctx, commands) =
+        session::create(cfg.clone(), outputs.clone(), permit, hub.controls.clone());
     let mut lease = session::Lease(Some(ctx.clone()));
     let sid = hex::encode(ctx.id);
-    write_control(&mut stream, &Control::new("Hello", &sid, serde_json::json!({"transport_version":2,"mode":"plain","media_token":hex::encode(ctx.token),"media_port":49161}))).await?;
+    write_control(&mut stream, &Control::new("Hello", &sid, serde_json::json!({"transport_version":2,"mode":"plain","media_token":hex::encode(ctx.token),"media_port":49161,"receiver_version":env!("CARGO_PKG_VERSION")}))).await?;
     let ack = tokio::time::timeout(Duration::from_secs(5), read_control(&mut stream)).await??;
     ensure!(
         ack.kind == "HelloAck"
@@ -127,6 +131,7 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
             && ack.body["transport_version"] == 2,
         "incompatible sender; install local v2 on both ends"
     );
+    *ctx.sender_info.lock().unwrap() = serde_json::json!({"app_version":ack.body["app_version"].as_str().filter(|v| v.len()<=32),"app_build":ack.body["app_build"].as_str().filter(|v| v.len()<=32),"capability_version":ack.body["capability_version"].as_u64()});
     write_control(
         &mut stream,
         &Control::new("Configure", &sid, serde_json::to_value(cfg)?),
@@ -158,6 +163,7 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         .get("capabilities")
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
+    session::prepare_video(&ctx, outputs).await?;
     *hub.active.lock().unwrap() = Arc::downgrade(&ctx);
     hub.last_error.lock().unwrap().clear();
     write_control(

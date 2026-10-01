@@ -40,6 +40,7 @@ class Application(Gtk.Application):
         self.formats = []
         self.capture_config = {}
         self.connected = False
+        self.live_controls = False
         self.current_address = None
         self.config_pending = False
         self.gain_timer = None
@@ -76,6 +77,7 @@ class Application(Gtk.Application):
         box.append(self.status)
         box.append(Gtk.Label(label='افتح TitanCam على الآيفون: اختر اسم الكمبيوتر على Wi-Fi،\nأو وصل الكابل واضغط Connect with USB. الاتصال يتم تلقائيًا.', xalign=0, wrap=True))
         self.profile = Gtk.DropDown.new_from_strings(['Saver — 720p30', 'Balanced — 1080p60', 'Maximum — 4K60 تجريبي'])
+        self.profile.set_selected(1)
         box.append(self.profile)
         profile_apply = Gtk.Button(label='تطبيق وضع الجودة بدون فصل الاتصال')
         profile_apply.connect('clicked', self.apply_profile)
@@ -86,7 +88,12 @@ class Application(Gtk.Application):
         self.format = Gtk.DropDown.new_from_strings(['انتظار الدقات المتاحة'])
         box.append(Gtk.Label(label='الدقة ومعدل الفريمات', xalign=0)); box.append(self.format)
         self.codec = Gtk.DropDown.new_from_strings(['H.264 — توافق واسع', 'HEVC — ضغط أكثر كفاءة، يحتاج اختبار'])
+        self.codec.set_selected(1)
         box.append(self.codec)
+        self.wifi_budget = Gtk.SpinButton.new_with_range(5, 200, 5)
+        self.wifi_budget.set_value(35)
+        box.append(Gtk.Label(label="حد إرسال Wi-Fi بالميجابت/ثانية — 35 كبداية لشبكة 2.4GHz", xalign=0, wrap=True))
+        box.append(self.wifi_budget)
         self.microphone = Gtk.DropDown.new_from_strings(['انتظار مصادر الميكروفون'])
         self.microphone.connect('notify::selected', self.microphone_changed)
         box.append(Gtk.Label(label='مدخل الميكروفون', xalign=0)); box.append(self.microphone)
@@ -158,24 +165,27 @@ class Application(Gtk.Application):
         if generation != self.generation:
             return False
         if capture:
-            self.config_pending = False; self.capture_apply.set_sensitive(self.connected)
+            self.config_pending = False; self.capture_apply.set_sensitive(self.connected and self.live_controls and bool(self.cameras))
         self.action_status.set_text(('لم يطبق التغيير: ' + error) if error else 'تم تطبيق الإعدادات وتأكيدها')
         return False
 
     def apply_profile(self, *_):
-        self.command('SetProfile', {'profile': ['saver', 'balanced', 'maximum'][self.profile.get_selected()]}, capture=True)
+        self.command('SetProfile', {'profile': ['saver', 'balanced', 'maximum'][self.profile.get_selected()], 'codec': ['h264', 'hevc'][self.codec.get_selected()], 'wifi_budget_mbps': self.wifi_budget.get_value_as_int()}, capture=True)
 
     def apply_capture(self, *_):
-        if not self.cameras or not self.formats or not self.microphones:
+        camera_index = self.camera.get_selected(); format_index = self.format.get_selected()
+        if not (0 <= camera_index < len(self.cameras) and 0 <= format_index < len(self.formats)):
             return
-        camera = self.cameras[self.camera.get_selected()]
-        fmt = self.formats[self.format.get_selected()]
-        microphone = self.microphones[self.microphone.get_selected()]
-        source = self.sources[self.source.get_selected()] if self.sources else None
+        camera = self.cameras[camera_index]; fmt = self.formats[format_index]
         codec = ['h264', 'hevc'][self.codec.get_selected()]
         profile = self.capture_config.get('profile', 'balanced')
-        rates = {'saver':3000000,'balanced':9000000,'maximum':40000000} if codec == 'hevc' else {'saver':4000000,'balanced':14000000,'maximum':65000000}
-        self.command('SetConfig', dict(fmt, camera_id=camera['id'], audio_input_id=microphone['id'], audio_data_source=source['id'] if source else None, codec=codec, bitrate=rates.get(profile,9000000)), capture=True)
+        rates = {'saver':3000000,'balanced':8000000,'maximum':24000000} if codec == 'hevc' else {'saver':4000000,'balanced':14000000,'maximum':65000000}
+        patch = dict(fmt, camera_id=camera['id'], codec=codec, bitrate=rates.get(profile,8000000), wifi_budget_mbps=self.wifi_budget.get_value_as_int())
+        mic_index = self.microphone.get_selected(); source_index = self.source.get_selected()
+        if 0 <= mic_index < len(self.microphones):
+            source = self.sources[source_index] if 0 <= source_index < len(self.sources) else None
+            patch.update(audio_input_id=self.microphones[mic_index]['id'], audio_data_source=source['id'] if source else None)
+        self.command('SetConfig', patch, capture=True)
 
     @staticmethod
     def dropdown(widget, labels):
@@ -185,7 +195,8 @@ class Application(Gtk.Application):
     def camera_changed(self, *_):
         if self.syncing or not self.cameras:
             return
-        self.formats = self.cameras[self.camera.get_selected()].get('formats', [])
+        index = self.camera.get_selected()
+        self.formats = self.cameras[index].get('formats', []) if 0 <= index < len(self.cameras) else []
         self.dropdown(self.format, [f"{m['width']}×{m['height']} · {m['fps']} FPS" for m in self.formats])
         cfg = self.capture_config
         match = next((i for i, mode in enumerate(self.formats) if all(mode.get(k) == cfg.get(k) for k in ('width', 'height', 'fps'))), 0)
@@ -194,7 +205,8 @@ class Application(Gtk.Application):
     def microphone_changed(self, *_):
         if self.syncing or not self.microphones:
             return
-        self.sources = [{'id': None, 'name': 'اختيار النظام'}] + self.microphones[self.microphone.get_selected()].get('sources', [])
+        index = self.microphone.get_selected()
+        self.sources = [{'id': None, 'name': 'اختيار النظام'}] + (self.microphones[index].get('sources', []) if 0 <= index < len(self.microphones) else [])
         self.dropdown(self.source, [f"{m['name']} · {m.get('location', '')} {m.get('orientation', '')}" for m in self.sources])
         self.source.set_selected(next((i for i, source in enumerate(self.sources) if source['id'] == self.capture_config.get('audio_data_source')), 0))
 
@@ -245,13 +257,15 @@ class Application(Gtk.Application):
         if data is None:
             data = {'connected': False}
         self.connected = bool(data.get('connected'))
-        self.capture_apply.set_sensitive(self.connected and not self.config_pending)
+        self.live_controls = bool(data.get("capabilities", {}).get("live_controls"))
+        self.capture_apply.set_sensitive(self.connected and self.live_controls and bool(data.get("capabilities", {}).get("cameras")) and not self.config_pending)
         self.capture_config = data.get('config', {})
         cap = data.get('capabilities', {})
         key = json.dumps(cap, sort_keys=True) + str(data.get('session')) + str(self.capture_config.get('config_id'))
         if key != self.capability_key:
             self.capability_key = key
             self.cameras = cap.get('cameras', []); self.microphones = cap.get('audio_inputs', [])
+            self.formats = []; self.sources = []
             self.syncing = True
             self.dropdown(self.camera, [f"{c['name']} · {c['position']}" for c in self.cameras])
             self.dropdown(self.microphone, [m['name'] for m in self.microphones])
@@ -259,6 +273,7 @@ class Application(Gtk.Application):
             self.microphone.set_selected(next((i for i, m in enumerate(self.microphones) if m['id'] == self.capture_config.get('audio_input_id')), 0))
             self.codec.set_selected(1 if self.capture_config.get('codec') == 'hevc' else 0)
             self.profile.set_selected({'saver':0,'balanced':1,'maximum':2}.get(self.capture_config.get('profile'),1))
+            self.wifi_budget.set_value(self.capture_config.get('wifi_budget_mbps',35))
             self.syncing = False
             self.camera_changed(); self.microphone_changed()
         if not self.connected:
@@ -269,9 +284,24 @@ class Application(Gtk.Application):
         if self.connected:
             cfg = self.capture_config
             stats = data.get('stats', {})
-            self.status.set_text(f"متصل · {stats.get('transport', '')} · {cfg.get('width')}×{cfg.get('height')} · {cfg.get('fps')} FPS target")
+            state = data.get('capabilities_state', 'ready' if cap.get('live_controls') else 'update_required')
+            if state != 'ready':
+                reason = {'update_required':'تطبيق الآيفون لم يعلن دعم التحكم؛ ثبّت نسخة 0.3.1 build 8', 'pending':'جارٍ استلام إمكانيات الكاميرا والمايك من الآيفون', 'unavailable':'لم تصل إمكانيات الكاميرا والمايك؛ أعد الاتصال بعد تحديث الآيفون'}.get(state, 'إمكانيات الهاتف غير متاحة')
+                self.action_status.set_text(reason)
+                self.syncing = True
+                self.dropdown(self.camera, [reason]); self.dropdown(self.format, ['الدقات لم تُرسل من الآيفون'])
+                self.dropdown(self.microphone, ['مصادر المايك لم تُرسل من الآيفون']); self.dropdown(self.source, ['غير متاح'])
+                self.syncing = False
+            sender = data.get('sender', {})
+            version = sender.get('app_version') or 'غير معلن'
+            build = sender.get('app_build') or '؟'
+
+            self.status.set_text(f"متصل · {stats.get('transport', '')} · {cfg.get('width')}×{cfg.get('height')} · {cfg.get('fps')} FPS target · {cfg.get('codec', '—').upper()} · iPhone {version}/{build}")
             self.metrics.set_text(f"Decoder: {stats.get('decoder', '—')} · decoded {stats.get('decoded_fps', 0):.1f} FPS\nDropped {stats.get('dropped', 0)} · recoveries {stats.get('recoveries', 0)} · audio underruns {stats.get('microphone_underruns', 0)}\nAudio peak {stats.get('audio_peak', 0):.2f} · clipping {stats.get('audio_clipped', 0)} · RTT {stats.get('clock_rtt_ms', 0):.1f} ms")
-            if cfg.get('fallback_reason'):
+            sender_stats = stats.get('sender_stats')
+            if isinstance(sender_stats, dict):
+                self.metrics.set_text(self.metrics.get_text() + f"\nفقد عند التقاط الهاتف {sender_stats.get('capture_dropped', 0)} · تخطي المشفّر {sender_stats.get('encoder_skipped', 0)}")
+            if state == 'ready' and cfg.get('fallback_reason'):
                 self.action_status.set_text(cfg['fallback_reason'])
         return False
 
@@ -298,7 +328,7 @@ class Application(Gtk.Application):
             args += ['--advertise', address]
         self.active_address = address
         self.network.set_text('Wi-Fi: ' + address if address else 'USB جاهز — لا توجد شبكة Wi-Fi حاليًا')
-        args += ['--profile', profile]
+        args += ['--profile', profile, '--codec', ['h264','hevc'][self.codec.get_selected()], '--wifi-budget-mbps', str(self.wifi_budget.get_value_as_int())]
         if self.preview.get_active():
             args.append('--preview')
         if self.webcam.get_active():

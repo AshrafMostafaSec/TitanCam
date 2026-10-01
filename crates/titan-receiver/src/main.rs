@@ -43,6 +43,10 @@ enum Commands {
         advertise: Option<String>,
         #[arg(long, default_value="saver", value_parser=["saver","balanced","maximum"])]
         profile: String,
+        #[arg(long, default_value = "h264", value_parser = ["h264", "hevc"])]
+        codec: String,
+        #[arg(long, default_value_t = 35, value_parser = clap::value_parser!(u32).range(5..=200))]
+        wifi_budget_mbps: u32,
         #[arg(long)]
         no_usb: bool,
         #[arg(long)]
@@ -105,13 +109,17 @@ async fn main() -> Result<()> {
             bind,
             advertise,
             profile,
+            codec,
+            wifi_budget_mbps,
             no_usb,
             preview,
             webcam,
             software,
             mute,
         } => {
-            let config = StreamConfig::profile(&profile, false);
+            let mut config = StreamConfig::profile(&profile, false);
+            config.select_codec(&codec);
+            config.wifi_budget_mbps = wifi_budget_mbps;
             let hub = control_api::Hub::new(config.clone(), mute);
             let receiver = local::run(
                 bind,
@@ -179,6 +187,7 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
                         "StartAck" => {
                             let host=msg.body["host_epoch_ns"].as_str().and_then(|s|s.parse().ok()).context("invalid capture clock epoch")?;
                             *ctx.host_epoch.lock().unwrap()=Some(host);ctx.live.store(true,Ordering::Release);
+                            if ctx.capabilities.lock().unwrap()["live_controls"] != true && ctx.sender_info.lock().unwrap()["capability_version"] == 1 { ctx.request("GetCapabilities",serde_json::json!({})); }
                             write_control(&mut writer,&Control::new("StreamingReady",&hex::encode(ctx.id),serde_json::json!({}))).await?;
                         },
                         "ConfigureAck" => {
@@ -202,6 +211,11 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
                             if pending.as_ref().is_some_and(|(id,_)| id==&msg.request_id) && let Some((_,sender))=pending.take() { let _=sender.send(Err(msg.body["reason"].as_str().unwrap_or("configuration rejected").to_owned())); }
                         },
                         "Capabilities"=>*ctx.capabilities.lock().unwrap()=msg.body,
+                        "SenderStats"=>{
+                            let mut values=serde_json::Map::new();
+                            for key in ["captured","encoded","capture_dropped","encoder_skipped","keyframes"] { if let Some(value)=msg.body[key].as_u64() {values.insert(key.into(),serde_json::json!(value));} }
+                            ctx.stats.lock().unwrap().sender_stats=serde_json::Value::Object(values);
+                        },
                         "ClockPong"=>ctx.update_clock(&msg.body),
                         "Heartbeat"=>(),
                         "Error"|"Stop"=>{

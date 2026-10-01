@@ -922,7 +922,7 @@ dependencies = [
 
 [[package]]
 name = "titan-bench"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -937,7 +937,7 @@ dependencies = [
 
 [[package]]
 name = "titan-media"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "cc",
@@ -948,7 +948,7 @@ dependencies = [
 
 [[package]]
 name = "titan-protocol"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytes",
  "serde",
@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "titan-receiver"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -977,7 +977,7 @@ dependencies = [
 
 [[package]]
 name = "titan-transport"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -991,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "titan-usb"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "cc",

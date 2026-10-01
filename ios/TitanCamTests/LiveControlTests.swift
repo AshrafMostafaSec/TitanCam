@@ -26,6 +26,7 @@ final class LiveControlTests: XCTestCase {
         let config = try JSONDecoder().decode(StreamConfig.self, from: legacy)
         XCTAssertTrue(config.valid)
         XCTAssertNil(config.camera_id)
+        XCTAssertEqual(config.wifiBudgetMbps, 35)
         var changed = config
         changed.camera_id = "front"
         XCTAssertFalse(changed.sameMediaFormat(as: config))

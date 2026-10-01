@@ -58,6 +58,7 @@ struct ContentView: View {
             Spacer()
             Image(systemName: "video.fill").font(.system(size: 46)).foregroundStyle(.mint)
             Text("TitanCam").font(.largeTitle.bold())
+            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") · Build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")").font(.caption).foregroundStyle(.secondary)
             Text(model.status).font(.title3).foregroundStyle(model.status == "Streaming" ? .mint : .secondary)
             if !model.detail.isEmpty { Text(model.detail).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center) }
             Button { model.connect(usb: true) } label: { Label("Connect with USB", systemImage: "cable.connector").frame(maxWidth: .infinity).padding(10) }.buttonStyle(.borderedProminent).tint(.mint)

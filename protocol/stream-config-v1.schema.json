@@ -106,6 +106,12 @@
         "null"
       ],
       "maxLength": 512
+    },
+    "wifi_budget_mbps": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 200,
+      "default": 35
     }
   },
   "additionalProperties": true

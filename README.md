@@ -23,7 +23,7 @@ cargo run --locked -p titan-receiver -- doctor --decode --microphone
 ```
 
 Dependency setup uses sudo in your terminal. The receiver runs as your normal user.
-For a release package use `sudo apt install ./titancam_0.3.0_ubuntu26.04_amd64.deb`
+For a release package use `sudo apt install ./titancam_0.3.1_ubuntu26.04_amd64.deb`
 (on Ubuntu 24.04 select the corresponding `ubuntu24.04` package). NVIDIA drivers,
 usbmuxd/device trust and v4l2loopback are separate host dependencies.
 
@@ -32,7 +32,7 @@ The desktop controller starts immediately and remains available when its window 
 It offers live profile, camera/lens, supported format, H.264/HEVC and microphone/source selection; volume/mute, horizontal/vertical image transforms and actual receiver counters. The iPhone is a simple
 sender with USB, discovered computer buttons and Stop; there is no phone preview,
 login, pairing code or certificate setup. Local transport is intentionally unencrypted.
-Install **matching 0.3.0 builds** on both endpoints for live camera/microphone controls and recovery. The earlier encrypted app is incompatible.
+Install **matching 0.3.1 builds** on both endpoints for live camera/microphone controls and recovery. The earlier encrypted app is incompatible.
 
 ### Connect
 

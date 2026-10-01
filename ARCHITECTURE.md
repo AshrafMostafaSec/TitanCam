@@ -1,8 +1,8 @@
-# TitanCam 0.3.0 — local sender and Linux receiver
+# TitanCam 0.3.1 — local sender and Linux receiver
 
 Updated 2026-10-01. Companion contract: [AGENTS.md](AGENTS.md). The owner explicitly requested a simpler trusted-LAN application without authentication, encryption, pairing forms or an iPhone preview. This specification governs implementation; [original research](docs/architecture-original-research.md) retains the earlier sources and experimental design. Transport v2 deliberately supersedes the encrypted alpha.1 application. Install matching new builds on both ends.
 
-The next existing-project implementation is defined in [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md). It is a roadmap, not implemented behavior. Current source audit is `32a5008`; the local desktop branding fix is subsequent uncommitted work.
+The existing-project implementation and remaining acceptance gates are described in [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md). The current 0.3.1 corrections below supersede earlier profile defaults and capability-handshake behavior. Historical sections are retained as evidence, not current qualification claims.
 
 ## Product and operating model
 
@@ -239,3 +239,52 @@ Two-hour physical streaming and glass-to-glass/quality/thermal qualification is 
 
 
 Implementation refinement: GPU/GL initialization and PipeWire source creation run on the blocking pool so they cannot stall Tokio control/audio/ingress workers. The compressed appsrc window permits at most 8 units, 16MiB and 120ms of queued duration; raw branches remain two-buffer leaky queues. Transform properties update only when direction changes. Audio rejects samples later than one packet duration, bounds concealment/output fill to one packet plus 512 frames, and applies gain on the producer. Feedback samples the actual decoder-output atomic counter directly, including the last frames after ingress stops. USB-to-Wi-Fi switches restore Wi-Fi playout/packet policy while retaining chosen sources. Last session errors survive disconnect in the local GUI status.
+
+## 0.3.1 — compatible controls and conservative 2.4 GHz operation
+
+The phone HelloAck now reports app version, build and capability schema version.
+ConfigureAck still carries real front/rear lens formats and active audio-session
+input/data sources. GetCapabilities/Capabilities can refresh that catalog without
+restarting capture. Linux distinguishes ready, pending, unavailable and phone-update
+required states; missing capabilities never leave controls waiting indefinitely.
+Camera/format selection is independent of optional microphone catalog availability.
+Camera input replacement, format changes and microphone source changes remain
+correlated transactions with rollback. Gain/mute are receiver DSP controls and
+remain separate from iOS input selection. UI shows the actual phone version/build.
+
+The optional `wifi_budget_mbps` field defaults to 35 (range 5–200), preserving
+legacy decoding. This is a manually selected **socket wire budget**, not a bandwidth
+measurement, Internet speed or Wi-Fi PHY/link rate. UDP peak pacing is bounded to
+that budget; video average is clamped so 10% framing allowance plus 0.4 Mbit/s audio/
+control allowance fits inside it. Headers include application framing; IP/MAC,
+interference and shared airtime require additional network headroom. USB does not
+apply that network clamp. There is no background network saturation test.
+
+Desktop starts Balanced 1920×1080/60 HEVC at 8 Mbit/s. Saver HEVC uses 3 Mbit/s;
+Maximum HEVC uses 24 Mbit/s at requested 3840×2160/60. H.264 retains 4/14/65 Mbit/s
+profile requests, with Wi-Fi ceiling and actual fallback reason. Requested dimensions
+and 60FPS are not silently reduced to meet the wire budget; thermal and unavailable
+sensor formats still report explicit effective fallbacks. Profile values are starting
+choices, not quality/energy guarantees. The phone hardware encoder remains mandatory,
+HEVC Main SDR has no B-frame reordering, and Linux selects nvh265dec when available.
+
+Decoder/pipeline creation happens in a blocking worker **before MediaReady/Start**;
+the same prepared pipeline is transferred to the video worker on its first unit.
+This avoids queuing first frames behind CUDA/GL/plugin startup. Independent audio/
+video workers and one affine clock mapping remain in use. Microphone data is converted
+on the phone where required, compressed with Opus for Wi-Fi, and published to a native
+PipeWire source on Linux. Phone does capture+hardware encode; Linux does one hardware
+decode plus bounded outputs. NVDEC is not claimed to move UDP or every V4L2 copy to GPU.
+
+Raw capture/admission drops do not damage an already encoded reference chain, so
+admission pressure no longer forces an unnecessary IDR. Lost compressed frames still
+trigger GOP-safe recovery; global external IDR requests are throttled to 250ms.
+SenderStats exposes captured/encoded/capture-dropped/encoder-skipped/keyframe counters
+alongside receiver loss/late/decoded counters, without media or device IDs in logs.
+
+Sources rechecked 2026-10-01: [Apple device formats](https://developer.apple.com/documentation/avfoundation/capture-device-formats),
+[Apple dropped-frame guidance](https://developer.apple.com/library/archive/technotes/tn2445/_index.html),
+[Apple audio preference/activation ordering](https://developer.apple.com/library/archive/qa/qa1631/_index.html),
+[GStreamer NVDEC HEVC](https://gstreamer.freedesktop.org/documentation/nvcodec/nvh265dec.html).
+See the 0.3.1 validation report for actual generated-media results and unqualified
+physical-phone/Wi-Fi/A-V/latency/thermal gates. No zero-latency or zero-drop guarantee.

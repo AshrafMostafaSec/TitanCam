@@ -11,6 +11,8 @@ struct StreamConfig: Codable, Equatable {
     var audio_channels: Int = 1
     var audio_packet_ms: Int = 10
     var playout_ms: Int = 60
+    var wifi_budget_mbps: Int? = 35
+    var wifiBudgetMbps: Int { wifi_budget_mbps ?? 35 }
     var camera_id: String?
     var audio_input_id: String?
     var audio_data_source: UInt32?
@@ -20,7 +22,7 @@ struct StreamConfig: Codable, Equatable {
     func sameMediaFormat(as other: StreamConfig) -> Bool {
         profile == other.profile && width == other.width && height == other.height && fps == other.fps && codec == other.codec && audio_codec == other.audio_codec && audio_channels == other.audio_channels && audio_packet_ms == other.audio_packet_ms && playout_ms == other.playout_ms && camera_id == other.camera_id && audio_input_id == other.audio_input_id && audio_data_source == other.audio_data_source
     }
-    var valid: Bool { config_id > 0 && ["saver", "balanced", "maximum"].contains(profile) && (1...3840).contains(width) && (1...2160).contains(height) && (1...60).contains(fps) && (100_000...100_000_000).contains(bitrate) && ["h264", "hevc"].contains(codec) && ["pcm", "opus"].contains(audio_codec) && (1...2).contains(audio_channels) && [5, 10, 20].contains(audio_packet_ms) && (0...100).contains(playout_ms) && (camera_id?.utf8.count ?? 0) <= 256 && (audio_input_id?.utf8.count ?? 0) <= 256 }
+    var valid: Bool { config_id > 0 && ["saver", "balanced", "maximum"].contains(profile) && (1...3840).contains(width) && (1...2160).contains(height) && (1...60).contains(fps) && (100_000...100_000_000).contains(bitrate) && ["h264", "hevc"].contains(codec) && ["pcm", "opus"].contains(audio_codec) && (1...2).contains(audio_channels) && [5, 10, 20].contains(audio_packet_ms) && (0...100).contains(playout_ms) && (5...200).contains(wifiBudgetMbps) && (camera_id?.utf8.count ?? 0) <= 256 && (audio_input_id?.utf8.count ?? 0) <= 256 }
 }
 struct ControlMessage {
     let type: String

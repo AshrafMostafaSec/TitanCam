@@ -2,9 +2,15 @@ import Foundation
 import AVFoundation
 import VideoToolbox
 final class VideoEncoder {
-    private final class Ticket { let generation: UInt64; init(_ generation: UInt64) { self.generation = generation } }
+    private final class Ticket { let generation: UInt64; let independent: Bool; init(_ generation: UInt64, independent: Bool) { self.generation = generation; self.independent = independent } }
     private var generation: UInt64 = 0
     private var colorApplied = false
+    private var captured: UInt64 = 0
+    private var encodedCount: UInt64 = 0
+    private var captureDrops: UInt64 = 0
+    private var skipped: UInt64 = 0
+    private var keyframes: UInt64 = 0
+    private var lastRequestedIDR: UInt64 = 0
     private var encoder: VTCompressionSession?
     private var inFlight = 0
     private var sequence: UInt64 = 0
@@ -18,14 +24,14 @@ final class VideoEncoder {
     var output: ((EncodedUnit) -> Void)?
     var failure: ((String) -> Void)?
     func configure(_ config: StreamConfig, session: Data) throws {
-        generation += 1; colorApplied = false; self.config = config; if self.sessionID != session { sequence = 0 }; self.sessionID = session; forceIDR = true; lastIDR = 0
+        generation += 1; colorApplied = false; self.config = config; if self.sessionID != session { sequence = 0; captured = 0; encodedCount = 0; captureDrops = 0; skipped = 0; keyframes = 0; lastRequestedIDR = 0 }; self.sessionID = session; forceIDR = true; lastIDR = 0
         if let encoder { VTCompressionSessionInvalidate(encoder) }; encoder = nil; inFlight = 0
         var specification: [CFString: Any] = [kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder: true, kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder: true]
         if config.codec == "h264" { specification[kVTVideoEncoderSpecification_EnableLowLatencyRateControl] = true }
         let callback: VTCompressionOutputCallback = { context, source, status, flags, sample in
             guard let context else { return }; let owner = Unmanaged<VideoEncoder>.fromOpaque(context).takeUnretainedValue()
             guard let source else { return }; let ticket = Unmanaged<Ticket>.fromOpaque(source).takeRetainedValue()
-            owner.queue.async { guard owner.generation == ticket.generation else { return }; owner.inFlight = max(0, owner.inFlight - 1); if status == noErr, !flags.contains(.frameDropped), let sample { owner.encoded(sample) } else { owner.forceIDR = true } }
+            owner.queue.async { guard owner.generation == ticket.generation else { return }; owner.inFlight = max(0, owner.inFlight - 1); if status == noErr, !flags.contains(.frameDropped), let sample { owner.encoded(sample) } else { owner.skipped += 1; if status != noErr || ticket.independent { owner.forceIDR = true } } }
         }
         var created: VTCompressionSession?
         let status = VTCompressionSessionCreate(allocator: kCFAllocatorDefault, width: Int32(config.width), height: Int32(config.height), codecType: config.codec == "hevc" ? kCMVideoCodecType_HEVC : kCMVideoCodecType_H264, encoderSpecification: specification as CFDictionary, imageBufferAttributes: nil, compressedDataAllocator: nil, outputCallback: callback, refcon: Unmanaged.passUnretained(self).toOpaque(), compressionSessionOut: &created)
@@ -50,7 +56,10 @@ final class VideoEncoder {
         guard status == noErr else { throw CameraError.unavailable("Bitrate update rejected (\(status))") }
         config.bitrate = bitrate
     }
+    func captureDropped() { captureDrops += 1 }
+    func statistics() -> [String: Any] { ["captured":captured,"encoded":encodedCount,"capture_dropped":captureDrops,"encoder_skipped":skipped,"keyframes":keyframes] }
     func encode(_ sample: CMSampleBuffer, pts: UInt64) {
+        captured += 1
         guard let encoder, let pixel = CMSampleBufferGetImageBuffer(sample) else { return }
         guard CVPixelBufferGetWidth(pixel) == config.width, CVPixelBufferGetHeight(pixel) == config.height else {
             failure?("Capture delivered dimensions do not match the effective encoder format")
@@ -61,16 +70,16 @@ final class VideoEncoder {
                 if let value = CVBufferCopyAttachment(pixel, source, nil) { let status = VTSessionSetProperty(encoder, key: destination, value: value); if status != noErr { failure?("Color metadata rejected (\(status))"); return } }
             }; colorApplied = true
         }
-        guard inFlight < 2 else { forceIDR = true; return }
+        guard inFlight < 2 else { skipped += 1; return }
         let independent = forceIDR || pts >= lastIDR + 1_000_000_000
         let props: [CFString: Any] = independent ? [kVTEncodeFrameOptionKey_ForceKeyFrame: true] : [:]
         if independent { lastIDR = pts; forceIDR = false }
         inFlight += 1
-        let ticket = Unmanaged.passRetained(Ticket(generation)).toOpaque()
+        let ticket = Unmanaged.passRetained(Ticket(generation, independent: independent)).toOpaque()
         let result = VTCompressionSessionEncodeFrame(encoder, imageBuffer: pixel, presentationTimeStamp: CMTime(value: Int64(pts), timescale: 1_000_000_000), duration: CMTime(value: 1, timescale: CMTimeScale(config.fps)), frameProperties: props as CFDictionary, sourceFrameRefcon: ticket, infoFlagsOut: nil)
         if result != noErr { Unmanaged<Ticket>.fromOpaque(ticket).release(); inFlight -= 1; forceIDR = true; failure?("Encoder failed (\(result))") }
     }
-    func requestIDR() { queue.async { self.forceIDR = true } }
+    func requestIDR() { queue.async { let now = CaptureEngine.hostTime; if self.lastRequestedIDR == 0 || now - self.lastRequestedIDR >= 250_000_000 { self.lastRequestedIDR = now; self.forceIDR = true } } }
     private func encoded(_ sample: CMSampleBuffer) {
         guard CMSampleBufferDataIsReady(sample), let block = CMSampleBufferGetDataBuffer(sample), let format = CMSampleBufferGetFormatDescription(sample) else { return }
         let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false) as? [[CFString: Any]]
@@ -91,6 +100,7 @@ final class VideoEncoder {
         while offset + header <= encoded.count { let n = encoded.subdata(in: offset..<offset + header).reduce(0) { ($0 << 8) | Int($1) }; offset += header; guard n > 0 && offset + n <= encoded.count else { forceIDR = true; return }; bytes.append(contentsOf: [0, 0, 0, 1]); bytes.append(encoded.subdata(in: offset..<offset + n)); offset += n }
         guard offset == encoded.count else { forceIDR = true; return }
         let pts = CMTimeConvertScale(CMSampleBufferGetPresentationTimeStamp(sample), timescale: 1_000_000_000, method: .default).value
+        encodedCount += 1; if independent { keyframes += 1 }
         output?(EncodedUnit(kind: 1, independent: independent, session: sessionID, config: config.config_id, sequence: sequence, pts: UInt64(max(0, pts)), duration: UInt32(1_000_000_000 / config.fps), bytes: bytes)); sequence += 1
     }
     func stop() { queue.sync { if let encoder = self.encoder { VTCompressionSessionCompleteFrames(encoder, untilPresentationTimeStamp: .invalid); VTCompressionSessionInvalidate(encoder) }; self.encoder = nil } }

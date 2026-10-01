@@ -49,7 +49,7 @@ final class DatagramSender {
     func configure(_ config: StreamConfig) {
         bitrate = config.bitrate
         cache = cache.filter { $0.value.0.config == config.config_id }; repairs.removeAll(keepingCapacity: true)
-        pacer.configure(bitrate: config.bitrate)
+        pacer.configure(bitrate: config.bitrate, wireBudgetMbps: config.wifiBudgetMbps)
         pacingMilliseconds = config.profile == "saver" ? 5 : config.profile == "maximum" ? 1 : 2
         timer?.schedule(deadline: .now(), repeating: .milliseconds(pacingMilliseconds), leeway: .microseconds(100))
     }

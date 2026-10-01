@@ -79,6 +79,16 @@ final class MediaSendQueueTests: XCTestCase {
         XCTAssertEqual(packets.count, 2); XCTAssertEqual(packets[1].integer(at: 32, UInt64.self), 21)
         sender.stop(); completions.removeFirst()(); XCTAssertEqual(packets.count, 2)
     }
+    func testWireBudgetLimitsIdrBurstsIncludingPacketHeaders() {
+        var p = MediaPacer(); p.configure(bitrate: 24_000_000, wireBudgetMbps: 35)
+        var sent = 0
+        for tick in 0..<100 {
+            p.advance(now: UInt64(tick) * 1_000_000)
+            for _ in 0..<128 { if p.take(bytes: 1100) { sent += 1100 } else { break } }
+        }
+        XCTAssertLessThanOrEqual(Double(sent), 35_000_000.0 / 8 * 0.104 + 1100)
+        XCTAssertGreaterThan(sent, 300_000)
+    }
     func testBitrateChangePreservesMediaFormat() {
         let original = StreamConfig(); var changed = original
         changed.bitrate /= 2; XCTAssertTrue(changed.sameMediaFormat(as: original))

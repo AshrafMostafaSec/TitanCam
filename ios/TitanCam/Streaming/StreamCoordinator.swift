@@ -41,6 +41,7 @@ final class StreamCoordinator {
     private var lastMissing = 0
     private var adaptiveAt: UInt64 = 0
     private var stableSince: UInt64 = 0
+    private var statisticsAt: UInt64 = 0
     private var requestedBitrate = 14_000_000
     var usbReadyDescription: String { "Waiting for your computer. Keep the cable connected and TitanCam open on Linux." }
     init() throws {
@@ -188,10 +189,18 @@ final class StreamCoordinator {
                   let mediaText = message.body["media_token"] as? String, let mediaToken = Data(hex: mediaText), mediaToken.count == 32,
                   Data(hex: message.session)?.count == 16 else { throw CameraError.protocolViolation("Install the matching TitanCam version on your computer") }
             session = message.session; token = mediaToken; negotiated = true; reconnectAttempt = 0
-            sendControl("HelloAck", ["transport_version": 2])
+            sendControl("HelloAck", ["transport_version":2, "app_version":Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown", "app_build":Bundle.main.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "unknown", "capability_version":1])
             heartbeat?.cancel(); let timer = DispatchSource.makeTimerSource(queue: queue)
             timer.schedule(deadline: .now(), repeating: .milliseconds(500))
-            timer.setEventHandler { [weak self] in self?.sendControl("Heartbeat") }; heartbeat = timer; timer.resume()
+            timer.setEventHandler { [weak self] in
+                guard let self else { return }; self.sendControl("Heartbeat")
+                let now = CaptureEngine.hostTime
+                if self.streaming && now - self.statisticsAt >= 1_000_000_000 {
+                    self.statisticsAt = now; let expected = self.generation; let session = self.session
+                    self.capture.videoStatistics { [weak self] values in self?.queue.async { guard let self, self.generation == expected, self.session == session else { return }; self.sendControl("SenderStats", values) } }
+                }
+            }; heartbeat = timer; timer.resume()
+        case "GetCapabilities": sendControl("Capabilities", capture.capabilities(), requestID: message.requestID)
         case "Configure":
             guard !configurationPending else {
                 sendControl("ConfigureError", ["reason":"Capture configuration busy; retry after acknowledgement"], requestID: message.requestID)

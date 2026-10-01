@@ -24,5 +24,11 @@
     "selective_repair": "Repair: config_id, sequence decimal string, missing indices max64, remaining_ms; requires capability flag; 80ms/8MiB sender cache; repair bandwidth <=10% encoded bitrate inside aggregate pacer",
     "reorder": "12ms or 4 complete AUs; hard16MiB bound",
     "local_gui_api": "runtime/titancam/control.sock; newline JSON v1, max64KiB, private0700directory/0600socket"
+  },
+  "optional_features_0_3_1": {
+    "version": "Hello.receiver_version; HelloAck.app_version/app_build/capability_version=1; absent legacy values imply update_required if no live_controls",
+    "capabilities": "GetCapabilities/Capabilities fallback when ConfigureAck omitted live_controls; Linux status ready/pending/unavailable/update_required; capabilities contain local private device identifiers",
+    "wifi_budget": "StreamConfig.wifi_budget_mbps optional default35 range5..200; receiver limits video to (wire budget minus 0.4Mbps)/1.10; sender aggregate peak pacing includes headers/audio/repair; USB unchanged",
+    "sender_statistics": "SenderStats at most once/sec: captured, encoded, capture_dropped, encoder_skipped, keyframes; integer cumulative counts per phone session, distinct from receiver drops"
   }
 }

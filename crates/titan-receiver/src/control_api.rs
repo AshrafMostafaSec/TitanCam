@@ -15,6 +15,17 @@ use tokio::{
     sync::Semaphore,
 };
 
+fn capabilities_state(ctx: &Context) -> &'static str {
+    if ctx.capabilities.lock().unwrap()["live_controls"] == true {
+        "ready"
+    } else if ctx.sender_info.lock().unwrap()["capability_version"] != 1 {
+        "update_required"
+    } else if ctx.created.elapsed() > Duration::from_secs(10) {
+        "unavailable"
+    } else {
+        "pending"
+    }
+}
 pub struct Hub {
     pub active: Mutex<Weak<Context>>,
     pub desired: Mutex<StreamConfig>,
@@ -45,7 +56,8 @@ impl Hub {
     pub fn status(&self) -> serde_json::Value {
         let controls = self.controls.lock().unwrap().clone();
         if let Some(ctx) = self.context() {
-            serde_json::json!({"connected":ctx.live.load(std::sync::atomic::Ordering::Acquire),"session":hex::encode(ctx.id),"config":*ctx.config.lock().unwrap(),"capabilities":*ctx.capabilities.lock().unwrap(),"stats":*ctx.stats.lock().unwrap(),"gain_db":controls.gain_db,"mute":controls.mute,"mirror":controls.mirror,"flip":controls.flip})
+            let capability_state = capabilities_state(&ctx);
+            serde_json::json!({"connected":ctx.live.load(std::sync::atomic::Ordering::Acquire),"session":hex::encode(ctx.id),"config":*ctx.config.lock().unwrap(),"capabilities":*ctx.capabilities.lock().unwrap(),"sender":*ctx.sender_info.lock().unwrap(),"capabilities_state":capability_state,"stats":*ctx.stats.lock().unwrap(),"gain_db":controls.gain_db,"mute":controls.mute,"mirror":controls.mirror,"flip":controls.flip})
         } else {
             serde_json::json!({"connected":false,"config":*self.desired.lock().unwrap(),"capabilities":{},"last_error":*self.last_error.lock().unwrap(),"gain_db":controls.gain_db,"mute":controls.mute,"mirror":controls.mirror,"flip":controls.flip})
         }
@@ -88,7 +100,8 @@ impl Hub {
                     "codec",
                     "profile",
                     "playout_ms",
-                    "audio_packet_ms"
+                    "audio_packet_ms",
+                    "wifi_budget_mbps"
                 ]
                 .contains(&key.as_str()),
                 "unsupported configuration field {key}"
@@ -102,6 +115,9 @@ impl Hub {
             .ok_or_else(|| anyhow::anyhow!("configuration generation exhausted"))?;
         config.fallback_reason = None;
         ensure!(config.validate(), "configuration outside supported bounds");
+        if config.audio_codec == "opus" {
+            config.constrain_wifi();
+        }
         let id = hex::encode(titan_transport::random::<8>());
         let (sender, receiver) = tokio::sync::oneshot::channel();
         *ctx.pending_config.lock().unwrap() = Some((id.clone(), sender));
@@ -141,12 +157,13 @@ impl Hub {
                 "SetProfile" => {
                     let name = request.body["profile"].as_str().unwrap_or("");
                     ensure!(["saver", "balanced", "maximum"].contains(&name), "unknown profile");
-                    let mut cfg = StreamConfig::profile(name, false);
-                    if self.context().is_some_and(|ctx| ctx.config.lock().unwrap().codec == "hevc") {
-                        cfg.bitrate = match name { "saver"=>3_000_000,"maximum"=>40_000_000,_=>9_000_000 };
-                    }
-                    let usb = self.context().is_some_and(|ctx| ctx.config.lock().unwrap().audio_codec == "pcm");
-                    self.configure(serde_json::json!({"profile":name,"width":cfg.width,"height":cfg.height,"fps":cfg.fps,"bitrate":cfg.bitrate,"playout_ms":if usb {35} else {cfg.playout_ms},"audio_packet_ms":if usb {5} else {cfg.audio_packet_ms}})).await
+                    let current = self.context().map(|ctx| ctx.config.lock().unwrap().clone()).ok_or_else(||anyhow::anyhow!("connect the phone first"))?;
+                    let codec = request.body["codec"].as_str().unwrap_or(&current.codec);
+                    ensure!(["h264", "hevc"].contains(&codec), "invalid codec");
+                    let mut cfg = StreamConfig::profile(name, false); cfg.select_codec(codec);
+                    let budget = request.body["wifi_budget_mbps"].as_u64().unwrap_or(current.wifi_budget_mbps as u64);
+                    let usb = current.audio_codec == "pcm";
+                    self.configure(serde_json::json!({"profile":name,"codec":codec,"bitrate":cfg.bitrate,"wifi_budget_mbps":budget,"width":cfg.width,"height":cfg.height,"fps":cfg.fps,"playout_ms":if usb {35} else {cfg.playout_ms},"audio_packet_ms":if usb {5} else {cfg.audio_packet_ms}})).await
                 }
                 "SetAudio" => {
                     let mut controls = self.controls.lock().unwrap();

@@ -43,9 +43,9 @@ struct MediaPacer {
     private var tokens: Double = 0
     private var peakTokens: Double = 0
     private var last: UInt64?
-    mutating func configure(bitrate: Int) {
+    mutating func configure(bitrate: Int, wireBudgetMbps: Int = 200) {
         average = (Double(bitrate) * 1.10 + 400_000) / 8
-        peak = min(40_000_000, average * 4)
+        peak = min(Double(wireBudgetMbps) * 1_000_000 / 8, average * 4)
         tokens = min(tokens, min(2_000_000, average * 0.25)); peakTokens = min(peakTokens, peak * 0.005)
     }
     mutating func advance(now: UInt64) {

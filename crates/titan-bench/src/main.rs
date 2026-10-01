@@ -1,4 +1,4 @@
-//! Synthetic peer: plain TCP/UDP, generated H.264 GOP, intentional reference loss.
+//! Synthetic peer: plain TCP/UDP, generated H.264/HEVC GOP and bounded recovery.
 use anyhow::{Context, Result, ensure};
 use clap::Parser;
 use gstreamer::{self as gst, prelude::*};
@@ -11,6 +11,12 @@ use titan_transport::{read_control, write_control};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 #[derive(Parser)]
 struct Args {
+    #[arg(long, default_value = "h264", value_parser = ["h264", "hevc"])]
+    codec: String,
+    #[arg(long, default_value_t = 320, value_parser = clap::value_parser!(u32).range(160..=3840))]
+    width: u32,
+    #[arg(long, default_value_t = 180, value_parser = clap::value_parser!(u32).range(90..=2160))]
+    height: u32,
     /// Run an uninterrupted stream instead of the intentional GOP-loss fixture.
     #[arg(long)]
     healthy: bool,
@@ -67,14 +73,32 @@ async fn gui(runtime: &Path, command: &str, body: serde_json::Value) -> Result<s
     );
     Ok(response["body"].clone())
 }
-fn frames(count: usize, fps: u32) -> Result<Vec<(Vec<u8>, bool)>> {
+fn frames(
+    count: usize,
+    fps: u32,
+    codec: &str,
+    width: u32,
+    height: u32,
+) -> Result<Vec<(Vec<u8>, bool)>> {
     gst::init()?;
-    let encoder = if gst::ElementFactory::find("x264enc").is_some() {
+    let encoder = if codec == "hevc" {
+        "x265enc tune=zerolatency speed-preset=ultrafast bitrate=8000 key-int-max=30 option-string=pools=2:frame-threads=1:log-level=error"
+    } else if gst::ElementFactory::find("x264enc").is_some() {
         "x264enc tune=zerolatency speed-preset=ultrafast key-int-max=30 byte-stream=true"
     } else {
         "openh264enc gop-size=30"
     };
-    let pipeline = gst::parse::launch(&format!("videotestsrc num-buffers={count} pattern=ball ! video/x-raw,format=I420,width=320,height=180,framerate={fps}/1 ! {encoder} ! h264parse ! video/x-h264,stream-format=byte-stream,alignment=au ! appsink name=out sync=false max-buffers=1"))?.downcast::<gst::Pipeline>().map_err(|_|anyhow::anyhow!("fixture pipeline"))?;
+    let parser = if codec == "hevc" {
+        "h265parse"
+    } else {
+        "h264parse"
+    };
+    let caps = if codec == "hevc" {
+        "video/x-h265"
+    } else {
+        "video/x-h264"
+    };
+    let pipeline = gst::parse::launch(&format!("videotestsrc num-buffers={count} pattern=ball ! video/x-raw,format=I420,width={width},height={height},framerate={fps}/1 ! {encoder} ! {parser} ! {caps},stream-format=byte-stream,alignment=au ! appsink name=out sync=false max-buffers=1"))?.downcast::<gst::Pipeline>().map_err(|_|anyhow::anyhow!("fixture pipeline"))?;
     let sink = pipeline
         .by_name("out")
         .unwrap()
@@ -99,7 +123,11 @@ async fn main() -> Result<()> {
     let recovery = !args.healthy && !args.repair;
     let count = if recovery { 90 } else { 300 };
     let fps = args.fps;
-    let fixture = tokio::task::spawn_blocking(move || frames(count, fps)).await??;
+    let codec = args.codec.clone();
+    let width = args.width;
+    let height = args.height;
+    let fixture =
+        tokio::task::spawn_blocking(move || frames(count, fps, &codec, width, height)).await??;
     let directory = Temp(std::env::temp_dir().join(format!(
         "titancam-bench-{}",
         hex::encode(titan_transport::random::<8>())
@@ -161,8 +189,9 @@ async fn main() -> Result<()> {
     let requested = read_control(&mut control).await?;
     ensure!(requested.kind == "Configure", "missing configuration");
     let mut config: StreamConfig = serde_json::from_value(requested.body)?;
-    config.width = 320;
-    config.height = 180;
+    config.width = width;
+    config.height = height;
+    config.codec = args.codec.clone();
     config.fps = fps;
     if args.audio {
         config.audio_codec = "pcm".into();
@@ -385,13 +414,18 @@ async fn main() -> Result<()> {
     }
     if args.hardware {
         ensure!(
-            latest["decoder"].as_str() == Some("nvh264dec"),
+            latest["decoder"].as_str()
+                == Some(if args.codec == "hevc" {
+                    "nvh265dec"
+                } else {
+                    "nvh264dec"
+                }),
             "hardware pipeline fell back to CPU"
         );
     }
     println!(
         "{}",
-        serde_json::json!({"synthetic_only":true,"transport":"plain TCP+UDP localhost","fixture_resolution":"320x180","fixture_fps":fps,"generated_frames":fixture.len(),"sent_frames":sent,"audio_packets_sent":audio_sent,"local_controls_exercised":args.controls,"tone_meter_verified":meter_verified,"steady_state_baseline":baseline,"intentional_reference_loss":u32::from(recovery),"configurations":if recovery{2}else{1},"repair_requests":repair_requests,"idr_requests":idr_requests,"receiver":latest,"physical_iphone_test":false})
+        serde_json::json!({"synthetic_only":true,"transport":"plain TCP+UDP localhost","fixture_resolution":format!("{width}x{height}"),"fixture_codec":args.codec,"fixture_fps":fps,"generated_frames":fixture.len(),"sent_frames":sent,"audio_packets_sent":audio_sent,"local_controls_exercised":args.controls,"tone_meter_verified":meter_verified,"steady_state_baseline":baseline,"intentional_reference_loss":u32::from(recovery),"configurations":if recovery{2}else{1},"repair_requests":repair_requests,"idr_requests":idr_requests,"receiver":latest,"physical_iphone_test":false})
     );
     Ok(())
 }

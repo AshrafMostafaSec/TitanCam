@@ -189,6 +189,8 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         }
     }
     func requestIDR() { encoder.requestIDR() }
+    func videoStatistics(completion: @escaping ([String: Any]) -> Void) { encoder.queue.async { completion(self.encoder.statistics()) } }
+    func captureOutput(_ output: AVCaptureOutput, didDrop sample: CMSampleBuffer, from connection: AVCaptureConnection) { if output is AVCaptureVideoDataOutput { encoder.captureDropped() } }
     func captureOutput(_ output: AVCaptureOutput, didOutput sample: CMSampleBuffer, from connection: AVCaptureConnection) {
         let pts = CMSampleBufferGetPresentationTimeStamp(sample)
         let host = session.masterClock.map { CMSyncConvertTime(pts, from: $0, to: CMClockGetHostTimeClock()) } ?? pts
