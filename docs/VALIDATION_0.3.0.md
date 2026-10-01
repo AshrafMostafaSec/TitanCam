@@ -14,7 +14,7 @@ Date: 2026-10-01. Development preview; physical two-hour testing is deferred at 
 
 ## Reproducible checks
 
-`source scripts/env.sh; scripts/check.sh` passes format, lint, 16 Rust tests and release compilation. `scripts/verify-protocol-fixtures.sh` passes shared wire bytes and schemas. The simulated clock test covers 7200 seconds at ±300ppm with asymmetric RTT outliers; it is not a two-hour camera session. Swift simulator CI covers 23 tests, including 44.1kHz-to-48kHz audio conversion, configuration correlation, parser/queue bounds and transport lifecycle. Exact-source final CI references accompany the downloadable handoff report.
+`source scripts/env.sh; scripts/check.sh` passes format, lint, 16 Rust tests and release compilation. `scripts/verify-protocol-fixtures.sh` passes shared wire bytes and schemas. The simulated clock test covers 7200 seconds at ±300ppm with asymmetric RTT outliers; it is not a two-hour camera session. Swift simulator CI covers 24 tests, including cancellation while awaiting permissions, 44.1kHz-to-48kHz audio conversion, configuration correlation, parser/queue bounds and transport lifecycle. Exact-source final CI references accompany the downloadable handoff report.
 
 GPU check command:
 

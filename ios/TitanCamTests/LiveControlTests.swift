@@ -3,6 +3,19 @@ import AVFoundation
 @testable import TitanCam
 
 final class LiveControlTests: XCTestCase {
+    @MainActor
+    func testStopCancelsPendingPermissionResult() async throws {
+        let model = AppModel()
+        var permission: CheckedContinuation<Bool, Never>?
+        model.authorize = { await withCheckedContinuation { permission = $0 } }
+        model.connect(usb: true)
+        for _ in 0..<20 where permission == nil { await Task.yield() }
+        XCTAssertNotNil(permission)
+        model.stop()
+        permission?.resume(returning: false)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNotEqual(model.status, "Permission needed", "A stopped request must not update UI or reconnect after authorization returns")
+    }
     func testRequestCorrelationAndOptionalLegacyConfig() throws {
         let original = ControlMessage("Configure", session: String(repeating: "11", count: 16), body: [:], requestID: "capture-42")
         let received = try ControlMessage(data: original.data())
