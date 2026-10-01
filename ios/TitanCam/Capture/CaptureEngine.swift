@@ -74,7 +74,6 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         guard requested.valid else { throw CameraError.protocolViolation("Unsupported configuration") }
         guard let device = CameraCatalog.camera(requested.camera_id) else { throw CameraError.unavailable("Selected camera is unavailable") }
         var config = requested
-        config.fallback_reason = nil
         let match: (Int, Int, Int) -> AVCaptureDevice.Format? = { width, height, fps in
             device.formats.first { format in
                 let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
@@ -85,7 +84,7 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         if format == nil {
             config.width = 1920; config.height = 1080; config.fps = min(30, config.fps)
             config.bitrate = min(config.bitrate, 14_000_000)
-            config.fallback_reason = "Requested format unavailable on selected camera; using 1080p at up to 30 FPS"
+            config.fallback_reason = [config.fallback_reason, "Requested format unavailable on selected camera; using 1080p at up to 30 FPS"].compactMap { $0 }.joined(separator: "; ")
             format = match(config.width, config.height, config.fps)
         }
         guard let format else { throw CameraError.unavailable("No compatible camera format") }
@@ -155,9 +154,9 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         if let port = audioSession.currentRoute.inputs.first {
             let actualSource = port.selectedDataSource?.dataSourceID.uint32Value
             if let requestedInput = config.audio_input_id, requestedInput != port.uid {
-                config.fallback_reason = "iOS selected a different microphone input; effective route reported"
+                config.fallback_reason = [config.fallback_reason, "iOS selected a different microphone input; effective route reported"].compactMap { $0 }.joined(separator: "; ")
             } else if let requestedSource = config.audio_data_source, requestedSource != actualSource {
-                config.fallback_reason = "iOS selected a different microphone data source; effective source reported"
+                config.fallback_reason = [config.fallback_reason, "iOS selected a different microphone data source; effective source reported"].compactMap { $0 }.joined(separator: "; ")
             }
             config.audio_input_id = port.uid; config.audio_data_source = actualSource
         }
