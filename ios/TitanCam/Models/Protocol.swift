@@ -10,26 +10,32 @@ struct StreamConfig: Codable, Equatable {
     var audio_codec: String = "opus"
     var audio_channels: Int = 1
     var audio_packet_ms: Int = 10
-    var playout_ms: Int = 10
+    var playout_ms: Int = 60
+    var camera_id: String?
+    var audio_input_id: String?
+    var audio_data_source: UInt32?
+    var fallback_reason: String?
     var encoder_hardware_evidence: String?
     var encoder_hardware_query_status: Int?
     func sameMediaFormat(as other: StreamConfig) -> Bool {
-        profile == other.profile && width == other.width && height == other.height && fps == other.fps && codec == other.codec && audio_codec == other.audio_codec && audio_channels == other.audio_channels && audio_packet_ms == other.audio_packet_ms && playout_ms == other.playout_ms
+        profile == other.profile && width == other.width && height == other.height && fps == other.fps && codec == other.codec && audio_codec == other.audio_codec && audio_channels == other.audio_channels && audio_packet_ms == other.audio_packet_ms && playout_ms == other.playout_ms && camera_id == other.camera_id && audio_input_id == other.audio_input_id && audio_data_source == other.audio_data_source
     }
-    var valid: Bool { config_id > 0 && ["saver", "balanced", "maximum"].contains(profile) && (1...3840).contains(width) && (1...2160).contains(height) && (1...60).contains(fps) && (100_000...100_000_000).contains(bitrate) && ["h264", "hevc"].contains(codec) && ["pcm", "opus"].contains(audio_codec) && (1...2).contains(audio_channels) && [5, 10, 20].contains(audio_packet_ms) && (0...100).contains(playout_ms) }
+    var valid: Bool { config_id > 0 && ["saver", "balanced", "maximum"].contains(profile) && (1...3840).contains(width) && (1...2160).contains(height) && (1...60).contains(fps) && (100_000...100_000_000).contains(bitrate) && ["h264", "hevc"].contains(codec) && ["pcm", "opus"].contains(audio_codec) && (1...2).contains(audio_channels) && [5, 10, 20].contains(audio_packet_ms) && (0...100).contains(playout_ms) && (camera_id?.utf8.count ?? 0) <= 256 && (audio_input_id?.utf8.count ?? 0) <= 256 }
 }
 struct ControlMessage {
     let type: String
     let session: String
     let epoch: UInt32
+    let requestID: String
     var allowedBeforeHandshake: Bool { type == "Hello" }
     let body: [String: Any]
-    init(_ type: String, session: String, body: [String: Any] = [:]) { self.type = type; self.session = session; self.body = body; self.epoch = 1 }
+    init(_ type: String, session: String, body: [String: Any] = [:], requestID: String = "0") { self.type = type; self.session = session; self.body = body; self.epoch = 1; self.requestID = requestID }
     init(data: Data) throws {
         guard data.count <= 65_536, let value = try JSONSerialization.jsonObject(with: data) as? [String: Any], value["version"] as? Int == 1, let type = value["type"] as? String, type.count <= 64, let session = value["session_id"] as? String, session.count == 32, let body = value["body"] as? [String: Any], ControlMessage.depth(body) <= 16 else { throw CameraError.protocolViolation("Invalid control message") }
+        guard let request = value["request_id"] as? String, request.utf8.count <= 64 else { throw CameraError.protocolViolation("Invalid request ID") }; self.requestID = request
         self.type = type; self.session = session; self.body = body; self.epoch = (value["transport_epoch"] as? NSNumber)?.uint32Value ?? 0
     }
-    func data() throws -> Data { let data = try JSONSerialization.data(withJSONObject: ["version": 1, "type": type, "request_id": "0", "session_id": session, "transport_epoch": epoch, "body": body]); guard data.count <= 65_536 else { throw CameraError.protocolViolation("Control message too large") }; return data }
+    func data() throws -> Data { let data = try JSONSerialization.data(withJSONObject: ["version": 1, "type": type, "request_id": requestID, "session_id": session, "transport_epoch": epoch, "body": body]); guard data.count <= 65_536 else { throw CameraError.protocolViolation("Control message too large") }; return data }
     private static func depth(_ value: Any) -> Int { if let dict = value as? [String: Any] { return 1 + (dict.values.map(depth).max() ?? 0) }; if let array = value as? [Any] { return 1 + (array.map(depth).max() ?? 0) }; return 0 }
 }
 enum CameraError: LocalizedError {

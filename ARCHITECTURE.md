@@ -2,6 +2,8 @@
 
 Updated 2026-10-01. Companion contract: [AGENTS.md](AGENTS.md). The owner explicitly requested a simpler trusted-LAN application without authentication, encryption, pairing forms or an iPhone preview. This specification governs implementation; [original research](docs/architecture-original-research.md) retains the earlier sources and experimental design. Transport v2 deliberately supersedes the encrypted alpha.1 application. Install matching new builds on both ends.
 
+The next existing-project implementation is defined in [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md). It is a roadmap, not implemented behavior. Current source audit is `32a5008`; the local desktop branding fix is subsequent uncommitted work.
+
 ## Product and operating model
 
 The foreground iPhone captures and hardware-encodes video/audio, then sends them. Its screen has connection status, a USB button, automatically discovered computer buttons, refresh, and stop. There is no camera preview, QR, token field, certificate or account. Capture stops on backgrounding/locking, but **not** when an iOS permission dialog temporarily makes the scene inactive.
@@ -94,7 +96,7 @@ Virtual webcam uses a separately installed v4l2loopback DKMS module and an acces
 |---|---|---|
 | Saver / best efficiency | 720p30 H.264 | Lowest default load; first USB qualification |
 | Balanced | 1080p60 H.264 | Smooth motion with bounded queues and adaptive bitrate |
-| Maximum | Up to 4K60 / HEVC | Experimental quality target subject to format, thermal and bandwidth support |
+| Maximum | Current code: 4K60 H.264 at 65 Mbit/s; proposed HEVC efficiency upgrade | Experimental quality target subject to format, thermal and bandwidth support |
 
 Authoritative bitrate/audio/playout starting values live in `StreamConfig::profile` and `config/profiles/`; keep them synchronized. Effective camera settings can differ and must be reported. No sustained 4K60 guarantee or better-than-sensor claim exists. Compression is not lossless.
 
@@ -209,3 +211,28 @@ FPS or glass-to-glass delay. NVIDIA was unavailable (`nvidia-smi`: no devices); 
 `avdec_h264` was active. A targeted driver bind remained blocked in the kernel.
 A clean restart and an actual `nvh264dec` session are required to qualify GPU reception.
 4K60 is still experimental and has not passed sustained qualification.
+
+## Existing-project improvement architecture (2026-10-01)
+
+Planned next data path: camera capability catalog → serialized capture/configuration transaction → hardware encoder → paced bounded transport → validated/reordered complete access units → independent video and audio schedulers sharing a clock estimator. One video decoder feeds a color-preserving mirror/flip transform and independently bounded preview/webcam outputs. Audio decode feeds stateful drift correction, smoothed digital gain/mute and the existing real-time PipeWire source. A normal-user Unix control socket connects the Linux GUI to session/DSP configuration with request IDs and acknowledged effective state.
+
+Front/rear selection must replace the capture input, not merely change a device variable. Negotiated capabilities cover actual format/encoder/receiver/output intersections; every incompatible request has an explicit fallback reason. Digital gain and image transforms belong to the receiver and must not restart the phone. Shared audio playout sleeps are removed from video processing only after measured diagnosis and regression coverage. Completed encoded-unit reordering is deadline-bounded; reference loss still requires independent-frame recovery.
+
+Current local-v2 transport remains TCP control/USB plus paced UDP media. Next Wi-Fi work adds delay/loss-aware feedback, total wire-budget adaptation, bounded selective repair and optional measured FEC. QUIC entails TLS and conflicts with current plaintext scope; SRT/RIST recovery windows and WebRTC signaling/security/dependency costs require comparative qualification before a product change. HEVC is a candidate for lower 4K60 wire load, not a demonstrated improvement on this phone build. No mode promises all-frame delivery or greater-than-sensor detail.
+
+Current audit: local `doctor --decode --microphone` decoded 30 generated H.264 frames via `nvh264dec` and published a PipeWire source. RTX 4050 Laptop driver 595.91.07 was available. USB enumeration was unavailable; physical phone-stream smoothness, HEVC and 4K60 were not tested in this audit. The diagnostic's 2 audio underruns do not establish a sustained-session failure or success. This newer synthetic observation does not invalidate the earlier physical-session CPU-fallback observation above.
+
+Foreground dim-screen operation is the supported battery-oriented proposal; ordinary locked/background capture is not promised. Handle interruption and foreground restoration as explicit lifecycle transitions. Public multitasking/PiP capabilities are use-case dependent and do not justify fake VoIP/audio activity. [Apple background interruption](https://developer.apple.com/documentation/avfoundation/avcapturesession/interruptionreason/videodevicenotavailableinbackground).
+
+The improvement plan contains source links, exact file ownership, three operating profiles, latency/quality/thermal budgets, fault matrices, CI/signing requirements and staged release gates. Feature implementation and qualification remain pending beyond the desktop icon/launcher fix.
+
+
+## 0.3.0 implementation update
+
+Implemented source changes: private bounded Unix GUI API; request-correlated live capture configuration with rollback/error response; public camera/lens format catalog and AVAudioSession input/data-source selection; actual-route reporting; receiver gain/mute/meters; per-output mirror/flip with one decode; independent audio/video workers sharing a drift-aware clock; stateful audio drift resampling and 48kHz conversion of phone routes; 12ms bounded completion reordering; opt-in capability-negotiated selective fragment repair with deadline/cache/traffic limits; atomic health snapshots and decoder-output FPS telemetry; foreground dim screen and restore/reconnect lifecycle. H.264 and HEVC Main SDR remain user-selectable and hardware-required on the phone.
+
+The defaults now use 35ms USB and 60/70/65ms Balanced/Saver/Maximum capture-timeline playout targets; the previous 5–15ms values did not allow for encode plus transport time. Maximum retains H.264 65Mbit/s as compatibility default; choosing HEVC does not constitute quality/performance qualification. LAN repair uses <=10% encoded-rate credit inside the existing aggregate wire pacer, an 80ms/8MiB/8-AU cache, max64 missing indices/request and max128 pending repair packets; receivers request repair only while estimated RTT+10ms fits assembly time remaining. Completed-AU reordering is at most12ms/4units/16MiB. Audio misses never trigger video IDR solely because the audio queue is full.
+
+Linux capture controls require the phone's live_controls capability. Configuration failure returns ConfigureError and restores the prior capture configuration, while local DSP commands apply without reconfiguration. Hardware route preference can be overridden by iOS; reports show actual source and fallback reason. No unsupported top/bottom mic labels are invented. Camera formats are queried; >=60 FPS or still-sensor resolution is not implicitly supported.
+
+Two-hour physical streaming and glass-to-glass/quality/thermal qualification is deferred by the owner. Synthetic tests and CI are evidence of implementation behavior, not an assurance that every phone/lens/AP sustains 4K60.

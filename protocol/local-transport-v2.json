@@ -17,5 +17,12 @@
   "hello_ack": "HelloAck",
   "max_datagram": 1100,
   "confidentiality": false,
-  "peer_authentication": false
+  "peer_authentication": false,
+  "optional_features_0_3": {
+    "live_controls": "Configure/ConfigureAck/ConfigureError request_id; ConfigureApplied config_id; capability flag live_controls",
+    "microphones": "AVAudioSession input UID and optional dataSourceID; effective route returned",
+    "selective_repair": "Repair: config_id, sequence decimal string, missing indices max64, remaining_ms; requires capability flag; 80ms/8MiB sender cache; repair bandwidth <=10% encoded bitrate inside aggregate pacer",
+    "reorder": "12ms or 4 complete AUs; hard16MiB bound",
+    "local_gui_api": "runtime/titancam/control.sock; newline JSON v1, max64KiB, private0700directory/0600socket"
+  }
 }

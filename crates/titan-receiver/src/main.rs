@@ -1,4 +1,7 @@
+mod clock;
+mod control_api;
 mod local;
+mod reorder;
 mod session;
 use anyhow::{Context as _, Result, ensure};
 use clap::{Parser, Subcommand};
@@ -108,19 +111,24 @@ async fn main() -> Result<()> {
             software,
             mute,
         } => {
-            local::run(
+            let config = StreamConfig::profile(&profile, false);
+            let hub = control_api::Hub::new(config.clone(), mute);
+            let receiver = local::run(
                 bind,
                 advertise,
-                StreamConfig::profile(&profile, false),
+                config,
                 OutputOptions {
                     preview,
                     webcam,
                     software,
-                    mute,
                 },
                 !no_usb,
-            )
-            .await
+                hub.clone(),
+            );
+            tokio::select! {
+                result=receiver=>result,
+                result=control_api::serve(hub)=>result,
+            }
         }
         Commands::Stats => {
             println!(
@@ -160,12 +168,60 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
     let mut feedback = tokio::time::interval(Duration::from_millis(100));
     let mut clock = tokio::time::interval(Duration::from_secs(1));
     let mut last_control = Instant::now();
+    let mut previous_decode = (Instant::now(), 0u64);
     loop {
         tokio::select! {
-                msg=incoming.recv()=>{let msg=msg.context("control reader ended")??;ensure!(msg.session_id==hex::encode(ctx.id)&&msg.transport_epoch==1,"stale control message");last_control=Instant::now();match msg.kind.as_str(){"StartAck"=>{let host=msg.body["host_epoch_ns"].as_str().and_then(|s|s.parse().ok()).context("invalid capture clock epoch")?;*ctx.host_epoch.lock().unwrap()=Some(host);ctx.live.store(true,Ordering::Release);write_control(&mut writer,&Control::new("StreamingReady",&hex::encode(ctx.id),serde_json::json!({}))).await?;},"ConfigureAck"=>{let effective:StreamConfig=serde_json::from_value(msg.body)?;ensure!(effective.validate(),"invalid updated configuration");*ctx.config.lock().unwrap()=effective;write_control(&mut writer,&Control::new("ConfigureApplied",&hex::encode(ctx.id),serde_json::json!({}))).await?;},"ClockPong"=>ctx.update_clock(&msg.body),"Heartbeat"|"Capabilities"=>(),"Error"|"Stop"=>{ctx.live.store(false,Ordering::Release);tracing::warn!("phone interrupted capture");},_=>()}}
+                msg=incoming.recv()=>{
+                    let msg=msg.context("control reader ended")??;
+                    ensure!(msg.session_id==hex::encode(ctx.id)&&msg.transport_epoch==1,"stale control message");
+                    last_control=Instant::now();
+                    match msg.kind.as_str() {
+                        "StartAck" => {
+                            let host=msg.body["host_epoch_ns"].as_str().and_then(|s|s.parse().ok()).context("invalid capture clock epoch")?;
+                            *ctx.host_epoch.lock().unwrap()=Some(host);ctx.live.store(true,Ordering::Release);
+                            write_control(&mut writer,&Control::new("StreamingReady",&hex::encode(ctx.id),serde_json::json!({}))).await?;
+                        },
+                        "ConfigureAck" => {
+                            let effective:StreamConfig=serde_json::from_value(msg.body.clone())?;
+                            ensure!(effective.validate(),"invalid updated configuration");
+                            let is_current = {
+                                let current=ctx.config.lock().unwrap();
+                                effective.config_id >= current.config_id
+                            };
+                            if !is_current { continue; }
+                            *ctx.config.lock().unwrap()=effective.clone();
+                            if let Some(capabilities)=msg.body.get("capabilities") { *ctx.capabilities.lock().unwrap()=capabilities.clone(); }
+                            let mut applied=Control::new("ConfigureApplied",&hex::encode(ctx.id),serde_json::json!({"config_id":effective.config_id}));
+                            applied.request_id=msg.request_id.clone();
+                            write_control(&mut writer,&applied).await?;
+                            let mut pending=ctx.pending_config.lock().unwrap();
+                            if pending.as_ref().is_some_and(|(id,_)| id==&msg.request_id) && let Some((_,sender))=pending.take() { let _=sender.send(Ok(effective)); }
+                        },
+                        "ConfigureError" => {
+                            let mut pending=ctx.pending_config.lock().unwrap();
+                            if pending.as_ref().is_some_and(|(id,_)| id==&msg.request_id) && let Some((_,sender))=pending.take() { let _=sender.send(Err(msg.body["reason"].as_str().unwrap_or("configuration rejected").to_owned())); }
+                        },
+                        "Capabilities"=>*ctx.capabilities.lock().unwrap()=msg.body,
+                        "ClockPong"=>ctx.update_clock(&msg.body),
+                        "Heartbeat"=>(),
+                        "Error"|"Stop"=>{
+                            ctx.live.store(false,Ordering::Release);
+                            ctx.stats.lock().unwrap().last_error=msg.body["reason"].as_str().unwrap_or("phone interrupted capture").to_owned();
+                            anyhow::bail!("phone interrupted capture");
+                        },
+                        _=>(),
+                    }
+                }
                 msg=commands.recv()=>{if let Some(msg)=msg{tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&msg)).await??}else{break}},
-                _=feedback.tick()=>{ensure!(!ctx.cancelled.load(Ordering::Acquire),"media session cancelled");if last_control.elapsed()>Duration::from_secs(3){ctx.live.store(false,Ordering::Release);anyhow::bail!("control heartbeat timeout")}let stats=ctx.stats.lock().unwrap().clone();let message=Control::new("Feedback",&hex::encode(ctx.id),serde_json::to_value(&stats)?);tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&message)).await??;if ctx.live.load(Ordering::Acquire)&&ctx.last_media.lock().unwrap().elapsed()>Duration::from_millis(500){ctx.request("RequestIDR",serde_json::json!({"reason":"media_watchdog"}));}
-        if saved_at.elapsed()>=Duration::from_secs(1){tokio::fs::write(titan_transport::state_dir().join("stats.json"),serde_json::to_vec(&stats)?).await?;saved_at=Instant::now();}},
+                _=feedback.tick()=>{ensure!(!ctx.cancelled.load(Ordering::Acquire),"media session cancelled");if last_control.elapsed()>Duration::from_secs(3){ctx.live.store(false,Ordering::Release);anyhow::bail!("control heartbeat timeout")}let stats={
+            let mut stats=ctx.stats.lock().unwrap();
+            let elapsed=previous_decode.0.elapsed().as_secs_f64();
+            if elapsed>=1.0 { stats.decoded_fps=stats.decoded_video.saturating_sub(previous_decode.1) as f64/elapsed; previous_decode=(Instant::now(),stats.decoded_video); }
+            stats.clone()
+        };let message=Control::new("Feedback",&hex::encode(ctx.id),serde_json::to_value(&stats)?);tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&message)).await??;if ctx.live.load(Ordering::Acquire)&&ctx.last_media.lock().unwrap().elapsed()>Duration::from_millis(500){ctx.request("RequestIDR",serde_json::json!({"reason":"media_watchdog"}));}
+        if saved_at.elapsed()>=Duration::from_secs(1){let directory=titan_transport::state_dir();
+            tokio::fs::write(directory.join("stats.json.tmp"),serde_json::to_vec(&stats)?).await?;
+            tokio::fs::rename(directory.join("stats.json.tmp"),directory.join("stats.json")).await?;saved_at=Instant::now();}},
                 _=clock.tick()=>{let msg=Control::new("ClockPing",&hex::encode(ctx.id),serde_json::json!({"r1":session::now_ns().to_string()}));tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&msg)).await??;}
                 }
     }

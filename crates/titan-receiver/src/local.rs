@@ -84,6 +84,8 @@ struct Peer {
     address: Option<SocketAddr>,
     assembler: Reassembler,
     config: u32,
+    reorder: crate::reorder::Reorder,
+    last_repair: Instant,
 }
 type Peers = Arc<Mutex<HashMap<[u8; 16], Peer>>>;
 type Split<S> = (
@@ -95,11 +97,12 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     cfg: StreamConfig,
     outputs: OutputOptions,
     slots: Arc<Semaphore>,
+    hub: Arc<crate::control_api::Hub>,
 ) -> Result<(Arc<Context>, Split<S>)> {
     let permit = slots
         .try_acquire_owned()
         .context("receiver busy with another session")?;
-    let (ctx, commands) = session::create(cfg.clone(), outputs, permit);
+    let (ctx, commands) = session::create(cfg.clone(), outputs, permit, hub.controls.clone());
     let mut lease = session::Lease(Some(ctx.clone()));
     let sid = hex::encode(ctx.id);
     write_control(&mut stream, &Control::new("Hello", &sid, serde_json::json!({"transport_version":2,"mode":"plain","media_token":hex::encode(ctx.token),"media_port":49161}))).await?;
@@ -134,9 +137,15 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         ack.kind == "ConfigureAck" && ack.session_id == sid && ack.transport_epoch == 1,
         "configuration not acknowledged"
     );
-    let effective: StreamConfig = serde_json::from_value(ack.body)?;
+    let effective: StreamConfig = serde_json::from_value(ack.body.clone())?;
     ensure!(effective.validate(), "invalid effective configuration");
     *ctx.config.lock().unwrap() = effective;
+    *ctx.capabilities.lock().unwrap() = ack
+        .body
+        .get("capabilities")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    *hub.active.lock().unwrap() = Arc::downgrade(&ctx);
     write_control(
         &mut stream,
         &Control::new("MediaReady", &sid, serde_json::json!({})),
@@ -152,6 +161,7 @@ pub async fn run(
     cfg: StreamConfig,
     outputs: OutputOptions,
     usb: bool,
+    hub: Arc<crate::control_api::Hub>,
 ) -> Result<()> {
     let listener = TcpListener::bind(SocketAddr::new(bind, 49160)).await?;
     let socket = Arc::new(UdpSocket::bind(SocketAddr::new(bind, 49161)).await?);
@@ -169,6 +179,7 @@ pub async fn run(
             StreamConfig::profile(&cfg.profile, true),
             outputs.clone(),
             slots.clone(),
+            hub.clone(),
         )))
     } else {
         None
@@ -182,14 +193,14 @@ pub async fn run(
             result=listener.accept()=>{
                 let (stream, address)=result?; stream.set_nodelay(true)?;
                 let Ok(handshake)=handshake_slots.clone().try_acquire_owned() else {continue};
-                let slots=slots.clone(); let cfg=cfg.clone(); let outputs=outputs.clone(); let peers=peers.clone();
+                let slots=slots.clone(); let cfg=cfg.clone(); let outputs=outputs.clone(); let peers=peers.clone(); let hub=hub.clone();
                 tokio::spawn(async move {
                     let _handshake=handshake;
                     let result:Result<()> = async {
-                        let (ctx, commands)=negotiate(stream,cfg,outputs,slots).await?;
+                        let (ctx, commands)=negotiate(stream,cfg,outputs,slots,hub).await?;
                         let _lease=session::Lease(Some(ctx.clone()));
-                        let id=ctx.id; let config=ctx.config.lock().unwrap().config_id;
-                        peers.lock().unwrap().insert(id,Peer { ctx:ctx.clone(),ip:address.ip(),address:None,assembler:Reassembler::new(id,1,config,Duration::from_millis(60)),config });
+                        ctx.stats.lock().unwrap().transport="Wi-Fi".into(); let id=ctx.id; let config=ctx.config.lock().unwrap().config_id;
+                        peers.lock().unwrap().insert(id,Peer { ctx:ctx.clone(),ip:address.ip(),address:None,assembler:Reassembler::new(id,1,config,Duration::from_millis(60)),config,reorder:crate::reorder::Reorder::new(),last_repair:Instant::now() });
                         let result=super::control_session(ctx,commands.0,commands.1).await;
                         peers.lock().unwrap().remove(&id); result
                     }.await;
@@ -232,15 +243,26 @@ async fn udp_loop(socket: Arc<UdpSocket>, peers: Peers) -> Result<()> {
                     if let Some(peer)=peers.get_mut(&header.session) {
                         if peer.address!=Some(source) || peer.ctx.cancelled.load(Ordering::Acquire) {continue;}
                         let config=peer.ctx.config.lock().unwrap().config_id;
-                        if peer.config!=config {peer.config=config;peer.assembler=Reassembler::new(peer.ctx.id,1,config,Duration::from_millis(60));}
+                        if peer.config!=config {peer.config=config;peer.reorder=crate::reorder::Reorder::new();peer.assembler=Reassembler::new(peer.ctx.id,1,config,Duration::from_millis(60));}
                         peer.ctx.stats.lock().unwrap().bytes+=length as u64;
-                        match peer.assembler.push(packet,Instant::now()) {Ok(Some(unit))=>peer.ctx.accept(unit),Ok(None)=>(),Err(_)=>peer.ctx.stats.lock().unwrap().dropped+=1}
+                        match peer.assembler.push(packet,Instant::now()) {Ok(Some(unit))=>{if unit.header.kind==1 {for ready in peer.reorder.push(unit,Instant::now()){peer.ctx.accept(ready);}} else {peer.ctx.accept(unit);}},Ok(None)=>(),Err(_)=>peer.ctx.stats.lock().unwrap().dropped+=1}
                     }
                 }
             }
             _=tick.tick()=>{
                 let mut peers=peers.lock().unwrap();
                 for peer in peers.values_mut() {
+                    let now=Instant::now();
+                    for unit in peer.reorder.drain(now) { peer.ctx.accept(unit); }
+                    if peer.last_repair.elapsed() >= Duration::from_millis(15) && peer.ctx.capabilities.lock().unwrap()["selective_repair"]==true {
+                        let rtt=peer.ctx.stats.lock().unwrap().clock_rtt_ms;
+                        for (header,missing,remaining) in peer.assembler.missing(now) {
+                            if rtt+10.0 < remaining as f64 {
+                                peer.ctx.request("Repair",serde_json::json!({"config_id":header.config,"sequence":header.sequence.to_string(),"missing":missing,"remaining_ms":remaining}));
+                            }
+                        }
+                        peer.last_repair=now;
+                    }
                     if peer.assembler.expire(Instant::now()) {peer.ctx.request("RequestIDR",serde_json::json!({"reason":"fragment_deadline"}));}
                     peer.ctx.stats.lock().unwrap().expired=peer.assembler.expired;
                 }
@@ -254,10 +276,18 @@ async fn usb_session(
     cfg: StreamConfig,
     outputs: OutputOptions,
     slots: Arc<Semaphore>,
+    hub: Arc<crate::control_api::Hub>,
 ) -> Result<()> {
-    let (ctx, commands) =
-        negotiate(super::usb_stream(device, base).await?, cfg, outputs, slots).await?;
+    let (ctx, commands) = negotiate(
+        super::usb_stream(device, base).await?,
+        cfg,
+        outputs,
+        slots,
+        hub,
+    )
+    .await?;
     let _lease = session::Lease(Some(ctx.clone()));
+    ctx.stats.lock().unwrap().transport = "USB".into();
     for (port, role) in [(base + 1, "video"), (base + 2, "audio")] {
         let mut media = super::usb_stream(device, port).await?;
         write_control(
@@ -301,7 +331,12 @@ async fn usb_session(
     ctx.request("Start", serde_json::json!({}));
     super::control_session(ctx, commands.0, commands.1).await
 }
-async fn usb_monitor(cfg: StreamConfig, outputs: OutputOptions, slots: Arc<Semaphore>) {
+async fn usb_monitor(
+    cfg: StreamConfig,
+    outputs: OutputOptions,
+    slots: Arc<Semaphore>,
+    hub: Arc<crate::control_api::Hub>,
+) {
     loop {
         if slots.available_permits() > 0
             && let Ok(Ok(devices)) = tokio::task::spawn_blocking(titan_usb::devices).await
@@ -316,6 +351,7 @@ async fn usb_monitor(cfg: StreamConfig, outputs: OutputOptions, slots: Arc<Semap
                         cfg.clone(),
                         outputs.clone(),
                         slots.clone(),
+                        hub.clone(),
                     )
                     .await
                     {
@@ -346,13 +382,13 @@ mod tests {
             preview: false,
             webcam: None,
             software: true,
-            mute: true,
         };
         let task = tokio::spawn(negotiate(
             server,
             StreamConfig::profile("saver", false),
             options,
             slots.clone(),
+            crate::control_api::Hub::new(StreamConfig::profile("saver", false), true),
         ));
         let hello = read_control(&mut phone).await.unwrap();
         assert_eq!(hello.kind, "Hello");

@@ -33,6 +33,10 @@ final class VideoEncoder {
         for (key, value) in [(kVTCompressionPropertyKey_RealTime, true as Any), (kVTCompressionPropertyKey_AllowFrameReordering, false as Any), (kVTCompressionPropertyKey_AverageBitRate, config.bitrate as Any), (kVTCompressionPropertyKey_ExpectedFrameRate, config.fps as Any)] {
             let result = VTSessionSetProperty(created, key: key, value: value as CFTypeRef); guard result == noErr else { throw CameraError.unavailable("Encoder setting rejected: \(key) (\(result))") }
         }
+        if config.codec == "hevc" {
+            let status = VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_HEVC_Main_AutoLevel)
+            guard status == noErr else { throw CameraError.unavailable("HEVC Main profile rejected (\(status))") }
+        }
         if config.codec == "h264" { let status = VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_High_AutoLevel); guard status == noErr else { throw CameraError.unavailable("H.264 profile rejected (\(status))") } }
         guard VTCompressionSessionPrepareToEncodeFrames(created) == noErr else { throw CameraError.unavailable("Encoder preparation failed") }
         var hardware: CFTypeRef?
@@ -48,6 +52,10 @@ final class VideoEncoder {
     }
     func encode(_ sample: CMSampleBuffer, pts: UInt64) {
         guard let encoder, let pixel = CMSampleBufferGetImageBuffer(sample) else { return }
+        guard CVPixelBufferGetWidth(pixel) == config.width, CVPixelBufferGetHeight(pixel) == config.height else {
+            failure?("Capture delivered dimensions do not match the effective encoder format")
+            return
+        }
         if !colorApplied {
             for (source, destination) in [(kCVImageBufferColorPrimariesKey, kVTCompressionPropertyKey_ColorPrimaries), (kCVImageBufferTransferFunctionKey, kVTCompressionPropertyKey_TransferFunction), (kCVImageBufferYCbCrMatrixKey, kVTCompressionPropertyKey_YCbCrMatrix)] {
                 if let value = CVBufferCopyAttachment(pixel, source, nil) { let status = VTSessionSetProperty(encoder, key: destination, value: value); if status != noErr { failure?("Color metadata rejected (\(status))"); return } }

@@ -1,8 +1,17 @@
 //! GStreamer video and allocation-free native PipeWire source adapter.
+pub mod dsp;
 use anyhow::{Result, ensure};
 use gstreamer::{self as gst, prelude::*};
 use gstreamer_app as app;
-use std::{ffi::c_void, ptr::NonNull, time::Duration};
+use std::{
+    ffi::c_void,
+    ptr::NonNull,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 unsafe extern "C" {
     fn tc_mic_create(channels: u32) -> *mut c_void;
     fn tc_mic_push(ptr: *mut c_void, samples: *const i16, frames: u32) -> u32;
@@ -104,6 +113,7 @@ pub struct Video {
     pipeline: gst::Pipeline,
     source: app::AppSrc,
     pub decoder: String,
+    decoded: Arc<AtomicU64>,
 }
 fn load_element(name: &str) -> Option<gst::Element> {
     // A cached factory can remain registered after its GPU/plugin becomes
@@ -155,15 +165,15 @@ impl Video {
             } else {
                 None
             };
-            let sink = if gl_sink.is_some() {
+            let sink = if gl_sink.is_some() && load_element("glvideoflip").is_some() {
                 "glimagesink"
             } else {
                 "autovideosink"
             };
             let conversion = if sink == "glimagesink" {
-                ""
+                "glupload ! glcolorconvert ! glvideoflip name=preview_transform ! "
             } else {
-                "videoconvert ! "
+                "videoconvert ! videoflip name=preview_transform ! "
             };
             let sink_element = gl_sink
                 .or_else(|| load_element("autovideosink"))
@@ -185,7 +195,7 @@ impl Video {
                     && device.len() > 10,
                 "invalid V4L2 output device"
             );
-            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! videoconvert ! video/x-raw,format=NV12 ! v4l2sink device={device} sync=true "));
+            branches.push_str(&format!(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! videoconvert ! videoflip name=webcam_transform ! video/x-raw,format=NV12 ! v4l2sink device={device} sync=true "));
         }
         if branches.is_empty() {
             branches.push_str(" t. ! queue max-size-buffers=2 max-size-bytes=0 max-size-time=0 leaky=downstream ! fakesink sync=true ");
@@ -207,12 +217,38 @@ impl Video {
                 .field("alignment", "au")
                 .build(),
         ));
+        let decoded = Arc::new(AtomicU64::new(0));
+        let counter = decoded.clone();
+        let element = pipeline
+            .iterate_elements()
+            .into_iter()
+            .filter_map(Result::ok)
+            .find(|e| e.factory().is_some_and(|f| f.name() == decoder))
+            .ok_or_else(|| anyhow::anyhow!("missing decoder"))?;
+        element
+            .static_pad("src")
+            .ok_or_else(|| anyhow::anyhow!("missing decoder pad"))?
+            .add_probe(gst::PadProbeType::BUFFER, move |_, _| {
+                counter.fetch_add(1, Ordering::Relaxed);
+                gst::PadProbeReturn::Ok
+            });
         pipeline.set_state(gst::State::Playing)?;
         Ok(Self {
             pipeline,
             source,
             decoder: decoder.into(),
+            decoded,
         })
+    }
+    pub fn decoded(&self) -> u64 {
+        self.decoded.load(Ordering::Relaxed)
+    }
+    pub fn set_transform(&self, controls: &dsp::Controls) {
+        for name in ["preview_transform", "webcam_transform"] {
+            if let Some(element) = self.pipeline.by_name(name) {
+                element.set_property_from_str("video-direction", controls.direction());
+            }
+        }
     }
     pub fn push(&self, data: Vec<u8>, pts: u64, duration: u32) -> Result<()> {
         ensure!(

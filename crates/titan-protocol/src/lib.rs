@@ -159,6 +159,31 @@ impl Reassembler {
         });
         video
     }
+    /// At most one bounded repair request is emitted per partial unit per call.
+    pub fn missing(&self, now: Instant) -> Vec<(MediaHeader, Vec<u16>, u32)> {
+        self.units
+            .values()
+            .filter_map(|unit| {
+                let age = now.saturating_duration_since(unit.created);
+                if unit.header.kind != 1
+                    || age < Duration::from_millis(5)
+                    || age + Duration::from_millis(15) >= self.ttl
+                {
+                    return None;
+                }
+                let indices: Vec<u16> = (0..unit.header.count)
+                    .filter(|i| !unit.parts.contains_key(i))
+                    .take(64)
+                    .collect();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some((unit.header, indices, (self.ttl - age).as_millis() as u32))
+                }
+            })
+            .take(4)
+            .collect()
+    }
     pub fn push(&mut self, b: &[u8], now: Instant) -> Result<Option<Unit>, WireError> {
         let h = MediaHeader::parse(b)?;
         if h.session != self.session || h.epoch != self.epoch || h.config != self.config {
@@ -262,13 +287,21 @@ pub struct StreamConfig {
     pub audio_channels: u32,
     pub audio_packet_ms: u32,
     pub playout_ms: u32,
+    #[serde(default)]
+    pub camera_id: Option<String>,
+    #[serde(default)]
+    pub audio_input_id: Option<String>,
+    #[serde(default)]
+    pub audio_data_source: Option<u32>,
+    #[serde(default)]
+    pub fallback_reason: Option<String>,
 }
 impl StreamConfig {
     pub fn profile(name: &str, usb: bool) -> Self {
         let (w, h, f, b, a, p) = match name {
-            "saver" => (1280, 720, 30, 4_000_000, 20, 15),
-            "maximum" => (3840, 2160, 60, 65_000_000, 5, 10),
-            _ => (1920, 1080, 60, 14_000_000, 10, 10),
+            "saver" => (1280, 720, 30, 4_000_000, 20, 70),
+            "maximum" => (3840, 2160, 60, 65_000_000, 10, 65),
+            _ => (1920, 1080, 60, 14_000_000, 10, 60),
         };
         Self {
             config_id: 1,
@@ -281,7 +314,11 @@ impl StreamConfig {
             audio_codec: if usb { "pcm" } else { "opus" }.into(),
             audio_channels: 1,
             audio_packet_ms: if usb { 5 } else { a },
-            playout_ms: if usb { 5 } else { p },
+            playout_ms: if usb { 35 } else { p },
+            camera_id: None,
+            audio_input_id: None,
+            audio_data_source: None,
+            fallback_reason: None,
         }
     }
     pub fn validate(&self) -> bool {
@@ -298,6 +335,15 @@ impl StreamConfig {
             && (1..=2).contains(&self.audio_channels)
             && [5, 10, 20].contains(&self.audio_packet_ms)
             && self.playout_ms <= 100
+            && self
+                .camera_id
+                .as_ref()
+                .is_none_or(|s| !s.is_empty() && s.len() <= 256)
+            && self
+                .audio_input_id
+                .as_ref()
+                .is_none_or(|s| !s.is_empty() && s.len() <= 256)
+            && self.fallback_reason.as_ref().is_none_or(|s| s.len() <= 512)
     }
 }
 pub fn media_binding(session: [u8; 16], epoch: u32, token: [u8; 32]) -> Vec<u8> {

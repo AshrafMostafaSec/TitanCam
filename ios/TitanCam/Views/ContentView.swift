@@ -5,6 +5,24 @@ final class AppModel: ObservableObject {
     @Published var status = "Ready"
     @Published var detail = ""
     var coordinator: StreamCoordinator?
+    private var resumeConnection: (Bool, String)?
+    private var backgroundPaused = false
+    @Published var dimmed = false
+    private var savedBrightness: CGFloat?
+    func toggleDim() {
+        dimmed.toggle()
+        if dimmed { savedBrightness = UIScreen.main.brightness; UIScreen.main.brightness = 0.03 }
+        else { restoreBrightness() }
+    }
+    func restoreBrightness() {
+        if let savedBrightness { UIScreen.main.brightness = savedBrightness }
+        savedBrightness = nil; dimmed = false
+    }
+    func stop() { resumeConnection = nil; backgroundPaused = false; coordinator?.stop(); restoreBrightness() }
+    func background() { backgroundPaused = resumeConnection != nil; coordinator?.stop(); restoreBrightness() }
+    func foreground() {
+        if backgroundPaused, let (usb, uri) = resumeConnection { backgroundPaused = false; connect(usb: usb, uri: uri) }
+    }
     init() {
         do {
             let stream = try StreamCoordinator(); coordinator = stream
@@ -14,6 +32,7 @@ final class AppModel: ObservableObject {
         } catch { status = "Setup failed"; detail = error.localizedDescription }
     }
     func connect(usb: Bool, uri: String = "") {
+        resumeConnection = (usb, uri)
         Task {
             guard await CaptureEngine.authorize() else { status = "Permission needed"; detail = "Allow Camera and Microphone in Settings."; return }
             if usb { coordinator?.enableUSB() } else { coordinator?.startWiFi(uri) }
@@ -41,14 +60,15 @@ struct ContentView: View {
                     }
                 }
             }.frame(maxHeight: 180)
-            Button("Stop", role: .destructive) { model.coordinator?.stop() }.buttonStyle(.bordered)
+            Button(model.dimmed ? "Restore brightness" : "Dim screen — keep app open") { model.toggleDim() }.buttonStyle(.bordered)
+            Button("Stop", role: .destructive) { model.stop() }.buttonStyle(.bordered)
             Spacer()
-        }.padding(28).preferredColorScheme(.dark)
+        }.padding(28).preferredColorScheme(.dark).background(model.dimmed ? Color.black : Color.clear)
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true; discovery.start() }
         .onChange(of: phase) { phase in
             // System permission dialogs temporarily make the scene inactive.
-            if phase == .background { model.coordinator?.stop(); discovery.stop() }
-            if phase == .active { discovery.start() }
+            if phase == .background { model.background(); discovery.stop() }
+            if phase == .active { discovery.start(); model.foreground() }
             UIApplication.shared.isIdleTimerDisabled = phase == .active
         }
     }

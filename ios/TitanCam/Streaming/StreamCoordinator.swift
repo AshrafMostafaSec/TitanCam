@@ -37,13 +37,15 @@ final class StreamCoordinator {
     private var generation = 0
     private var lastVideo = 0
     private var lastExpired = 0
+    private var lastLate = 0
+    private var lastMissing = 0
     private var adaptiveAt: UInt64 = 0
     private var stableSince: UInt64 = 0
     private var requestedBitrate = 14_000_000
     var usbReadyDescription: String { "Waiting for your computer. Keep the cable connected and TitanCam open on Linux." }
     init() throws {
         capture.output = { [weak self] unit in self?.queue.async { self?.send(unit) } }
-        capture.failure = { [weak self] error in self?.queue.async { self?.fail(error, retry: false) } }
+        capture.failure = { [weak self] error in self?.queue.async { self?.fail(error, retry: error.hasPrefix("Capture interrupted:")) } }
     }
     func startWiFi(_ uri: String) {
         queue.async { do {
@@ -171,7 +173,7 @@ final class StreamCoordinator {
         } else { fail("USB port \(port): \(error.localizedDescription)", retry: false) }
     }
     private func attachControl(_ framed: FramedConnection, usb: Bool) {
-        negotiated = false; configurationPending = false; configurationPaused = false; lastVideo = 0; lastExpired = 0
+        negotiated = false; configurationPending = false; configurationPaused = false; lastVideo = 0; lastExpired = 0; lastLate = 0; lastMissing = 0
         framed.receive = { [weak self, weak framed] data in guard let self, let framed, self.control === framed else { return }; do { try self.handle(ControlMessage(data: data), usb: usb) } catch { self.fail(error.localizedDescription, retry: false) } }
         framed.failure = { [weak self, weak framed] error in guard let self, let framed, self.control === framed else { return }; self.control = nil; self.negotiated = false; self.streaming = false; self.session = ""; self.capture.stop(); self.usbVideo?.stop(); self.usbVideo = nil; self.usbAudio?.stop(); self.usbAudio = nil; self.datagrams?.stop(); self.datagrams = nil; self.video?.close(); self.video = nil; self.audio?.close(); self.audio = nil; self.heartbeat?.cancel(); self.heartbeat = nil; self.update?("Disconnected", error?.localizedDescription ?? "Connection closed", [:]); if !self.userStopped && !usb { self.retry() } }
         let expected = generation; queue.asyncAfter(deadline: .now() + 5) { [weak self, weak framed] in guard let self, let framed, self.generation == expected else { return }; if self.control === framed && !self.negotiated { framed.close(CameraError.protocolViolation("Computer did not finish connection setup")) } }
@@ -191,10 +193,40 @@ final class StreamCoordinator {
             timer.schedule(deadline: .now(), repeating: .milliseconds(500))
             timer.setEventHandler { [weak self] in self?.sendControl("Heartbeat") }; heartbeat = timer; timer.resume()
         case "Configure":
-            let data = try JSONSerialization.data(withJSONObject: message.body); let requested = try JSONDecoder().decode(StreamConfig.self, from: data); guard let sid = Data(hex: session) else { throw CameraError.protocolViolation("Invalid session") }
-            let expected = generation; configurationPending = true; configurationPaused = true
-            capture.configure(requested, sessionID: sid) { [weak self] result in self?.queue.async { guard let self, self.generation == expected, self.session == message.session else { return }; switch result { case .success(let effective): self.current = effective; self.requestedBitrate = requested.bitrate; self.adaptiveAt = CaptureEngine.hostTime; self.stableSince = self.adaptiveAt; do { let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(effective)) as! [String: Any]; self.sendControl("ConfigureAck", body); self.update?("Configured", "\(effective.width)×\(effective.height) · \(effective.fps) FPS target · \(effective.codec.uppercased())", [:]); self.datagrams?.configure(effective) } catch { self.fail(error.localizedDescription, retry: false) }; case .failure(let error): self.fail(error.localizedDescription, retry: false) } } }
-        case "ConfigureApplied": configurationPending = false; if streaming && configurationPaused { configurationPaused = false; capture.requestIDR(); capture.start() }
+            guard !configurationPending else {
+                sendControl("ConfigureError", ["reason":"Capture configuration busy; retry after acknowledgement"], requestID: message.requestID)
+                return
+            }
+            let data = try JSONSerialization.data(withJSONObject: message.body)
+            let requested = try JSONDecoder().decode(StreamConfig.self, from: data)
+            guard requested.valid, let sid = Data(hex: session) else { throw CameraError.protocolViolation("Invalid configuration") }
+            let expected = generation
+            configurationPending = true; configurationPaused = true
+            capture.configure(requested, sessionID: sid) { [weak self] result in
+                self?.queue.async {
+                    guard let self, self.generation == expected, self.session == message.session else { return }
+                    switch result {
+                    case .success(let effective):
+                        self.current = effective; self.requestedBitrate = requested.bitrate
+                        self.adaptiveAt = CaptureEngine.hostTime; self.stableSince = self.adaptiveAt
+                        do {
+                            var body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(effective)) as! [String: Any]
+                            body["capabilities"] = self.capture.capabilities()
+                            self.sendControl("ConfigureAck", body, requestID: message.requestID)
+                            self.update?("Configured", "\(effective.width)×\(effective.height) · \(effective.fps) FPS · \(effective.codec.uppercased())", [:])
+                            self.datagrams?.configure(effective)
+                        } catch { self.fail(error.localizedDescription, retry: false) }
+                    case .failure(let error):
+                        self.configurationPending = false; self.configurationPaused = false
+                        if self.streaming { self.sendControl("ConfigureError", ["reason":error.localizedDescription], requestID: message.requestID) }
+                        else { self.fail(error.localizedDescription, retry: false) }
+                    }
+                }
+            }
+        case "ConfigureApplied":
+            guard (message.body["config_id"] as? NSNumber)?.uint32Value == current.config_id else { return }
+            configurationPending = false
+            if streaming && configurationPaused { configurationPaused = false; capture.requestIDR(); capture.start() }
         case "MediaReady": if !usb && datagrams == nil { startMedia() }
         case "MediaBound": datagrams?.bound()
         case "Start":
@@ -202,6 +234,7 @@ final class StreamCoordinator {
             streaming = true; sendControl("StartAck", ["host_epoch_ns": capture.epoch.description]); update?("Streaming", "\(usb ? "USB" : "Wi-Fi") · \(current.profile)", [:])
         case "StreamingReady": configurationPending = false; configurationPaused = false; capture.start()
         case "RequestIDR": capture.requestIDR()
+        case "Repair": datagrams?.repair(message.body)
         case "ClockPing": let received = CaptureEngine.hostTime; sendControl("ClockPong", ["r1": message.body["r1"] as? String ?? "", "s2": received.description, "s3": CaptureEngine.hostTime.description])
         case "Feedback": if streaming { update?("Streaming", "\(usb ? "USB" : "Wi-Fi") · \(current.profile)", message.body); adapt(message.body) }
         case "Stop": capture.stop(); update?("Paused", "Receiver paused capture", [:])
@@ -220,19 +253,24 @@ final class StreamCoordinator {
         })
     }
     private func send(_ unit: EncodedUnit) {
-        guard streaming, unit.session.hex == session, unit.config == current.config_id else { return }
+        guard streaming, !configurationPaused, unit.session.hex == session, unit.config == current.config_id else { return }
         if let datagrams { datagrams.enqueue(unit) }
         else if unit.kind == 1 { usbVideo?.enqueue(unit) } else { usbAudio?.enqueue(unit) }
     }
-    private func sendControl(_ type: String, _ body: [String: Any] = [:], completion: (() -> Void)? = nil) { guard let data = try? ControlMessage(type, session: session, body: body).data() else { return }; if control?.send(data, completion: completion) != true { fail("Control queue exceeded limit", retry: true) } }
+    private func sendControl(_ type: String, _ body: [String: Any] = [:], requestID: String = "0", completion: (() -> Void)? = nil) { guard let data = try? ControlMessage(type, session: session, body: body, requestID: requestID).data() else { return }; if control?.send(data, completion: completion) != true { fail("Control queue exceeded limit", retry: true) } }
     private func adapt(_ feedback: [String: Any]) {
         let now = CaptureEngine.hostTime; guard !configurationPending, now - adaptiveAt >= 1_000_000_000 else { return }; adaptiveAt = now
-        let expired = (feedback["expired"] as? NSNumber)?.intValue ?? 0; let frames = (feedback["video"] as? NSNumber)?.intValue ?? 0; defer { lastExpired = expired; lastVideo = frames }
+        let expired = (feedback["expired"] as? NSNumber)?.intValue ?? 0
+        let frames = (feedback["video"] as? NSNumber)?.intValue ?? 0
+        let missing = (feedback["missing_units"] as? NSNumber)?.intValue ?? 0
+        let late = (feedback["late_video"] as? NSNumber)?.intValue ?? 0
+        let rtt = (feedback["clock_rtt_ms"] as? NSNumber)?.doubleValue ?? 0
+        defer { lastExpired = expired; lastVideo = frames; lastMissing = missing; lastLate = late }
         let thermal = ProcessInfo.processInfo.thermalState
         if thermal == .critical { fail("Phone is too hot. Let it cool, then reconnect.", retry: false); return }
         var next = current
         if thermal == .serious { next.fps = min(next.fps, 30); next.bitrate = min(next.bitrate, 14_000_000); if next.width > 1920 { next.width = 1920; next.height = 1080 } }
-        else if expired > lastExpired { stableSince = now; next.bitrate = max(2_000_000, Int(Double(next.bitrate) * 0.8)) }
+        else if expired > lastExpired || (!usb && (missing > lastMissing || late > lastLate || rtt > 40)) { stableSince = now; next.bitrate = max(2_000_000, Int(Double(next.bitrate) * 0.8)) }
         else if now - stableSince > 5_000_000_000 && frames > lastVideo { next.bitrate = min(requestedBitrate, Int(Double(next.bitrate) * 1.05)); stableSince = now }
         guard next != current, let sid = Data(hex: session) else { return }
         let formatChanged = !next.sameMediaFormat(as: current)

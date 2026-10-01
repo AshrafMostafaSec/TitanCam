@@ -72,6 +72,7 @@ async fn main() -> Result<()> {
     }
     let mut process = command
         .env("XDG_STATE_HOME", directory.0.join("state"))
+        .env("XDG_RUNTIME_DIR", directory.0.join("runtime"))
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::inherit())
         .kill_on_drop(true)

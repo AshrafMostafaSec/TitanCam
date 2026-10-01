@@ -47,3 +47,8 @@ latency/quality/energy qualification. Until then artifacts are labelled developm
 Simulator test bundles use local ad-hoc simulator signatures (`-`) for the hosted
 app test runner. This uses no Apple account/certificate and does not sign or provision
 the physical-device IPA, which remains explicitly unsigned.
+
+
+## 0.3.0 live controls
+
+Update both endpoints for camera/microphone selection and Repair. H.264/HEVC SDR are available; HDR is not advertised. The user deferred physical two-hour testing; artifacts remain prerelease until it passes. Build scripts regenerate the Xcode project to include the new catalog and tests. Local DSP gain/mute/transforms do not require a capture restart.

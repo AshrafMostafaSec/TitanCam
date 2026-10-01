@@ -16,8 +16,11 @@ rm -rf "$staging" build/package
 mkdir -p "$staging/usr/bin" "$staging/usr/share/doc/titancam" "$staging/DEBIAN" build/package
 install -m 755 target/release/titan-receiver "$staging/usr/bin/"
 mkdir -p "$staging/usr/share/titancam" "$staging/usr/share/applications"
+install -m 644 scripts/desktop-control.py "$staging/usr/share/titancam/"
 install -m 644 scripts/desktop-launcher.py "$staging/usr/share/titancam/"
 install -m 644 packaging/titancam.desktop "$staging/usr/share/applications/"
+mkdir -p "$staging/usr/share/icons/hicolor/512x512@2/apps"
+install -m 644 packaging/icons/titancam.png "$staging/usr/share/icons/hicolor/512x512@2/apps/"
 printf '%s\n' '#!/bin/sh' 'exec /usr/bin/python3 /usr/share/titancam/desktop-launcher.py "$@"' > "$staging/usr/bin/titancam"
 chmod 755 "$staging/usr/bin/titancam"
 cp README.md ARCHITECTURE.md AGENTS.md "$staging/usr/share/doc/titancam/"

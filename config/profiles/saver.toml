@@ -7,4 +7,4 @@ codec = "h264"
 video_bitrate_bps = 4000000
 wifi_opus_bitrate_bps = 64000
 wifi_audio_packet_ms = 20
-wifi_jitter_initial_ms = 15
+wifi_jitter_initial_ms = 70

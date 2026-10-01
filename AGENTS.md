@@ -2,6 +2,8 @@
 
 Research baseline: **2026-09-30**; implementation decision updated **2026-10-01**.
 
+**Existing-project improvement scope (2026-10-01):** Continue from 0.2.3; follow [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) for the next implementation stages. Diagnose real frame delivery and GPU output before tuning, add acknowledged Linux controls for discovered front/rear camera formats, digital audio gain/mute and image transforms, then qualify efficient Wi-Fi/HEVC/4K60. The plan distinguishes audited behavior, the applied desktop artwork fix, and pending features. Its clarification of current Maximum as H.264 65 Mbit/s supersedes older HEVC-default wording. Preserve the local-v2 plaintext product contract unless the owner changes it; QUIC/WebRTC are evaluated alternatives, not authorized transport migrations. Do not label this plan or synthetic hardware probes as completed feature or physical-stream qualification.
+
 **Authoritative local v2 scope:** The human owner explicitly requested removal of authentication, encryption, pairing codes, and the iPhone preview for their trusted company LAN. Implement clear TCP control/USB and paced UDP media with Bonjour discovery. Do not reintroduce TLS, QUIC, signatures, certificate/Keychain setup or pairing UI. Keep strict bounds, random session IDs and automatic channel binding for correctness; they provide no confidentiality or peer authentication. Both endpoints must run 0.2.0+; older encrypted applications are incompatible. iPhone is sender-only; Linux owns profile/output controls and actual health. This supersedes older research/security provisions below. Companion specification: [ARCHITECTURE.md](ARCHITECTURE.md). Copy both files to the repository root before implementation. This file defines engineering requirements; ARCHITECTURE.md defines the system, protocol, operating profiles, experiments, and source evidence.
 
 ## 1. Deliverable and priorities
@@ -36,7 +38,7 @@ ios/TitanCam/                  # app and reusable Swift modules
 ios/TitanCamTests/
 crates/titan-protocol/         # pure parsing, schemas, golden vectors
 crates/titan-usb/              # libusbmuxd ownership and event adapter
-crates/titan-transport/        # TLS/QUIC/session state machines
+crates/titan-transport/        # bounded local-v2 TCP record I/O and session helpers
 crates/titan-media/            # GStreamer, clocks, PipeWire output
 crates/titan-receiver/         # CLI, orchestration, local control socket
 crates/titan-bench/            # synthetic sender, impairment/replay tools
@@ -114,7 +116,7 @@ Real hardware/GPU/kernel tests run only on isolated, labelled trusted runners or
 
 Use typed errors, cancellation, monotonic deadlines, explicit state machines, and RAII/resource cleanup. Confine Rust `unsafe` to documented FFI/real-time boundaries; verify C ownership and thread safety. Serialize device/session operations; bridge GStreamer and PipeWire threading models without blocking Tokio's executor. Use XCTest for Swift pure components and realistic fixture-based Rust tests.
 
-Keep builds reproducible without forcing byte-identical signed IPAs, whose signatures/timestamps may differ. Add diagnostic commands and effective-config dumps before advanced UI. Provide `titan-receiver doctor`, `devices`, `pair`, `run`, `stats`, and `benchmark`; configuration lives in XDG paths. Logs are structured, bounded, rotated, and redact secrets.
+Keep builds reproducible without forcing byte-identical signed IPAs, whose signatures/timestamps may differ. Add diagnostic commands and effective-config dumps before advanced UI. Maintain `titan-receiver doctor`, `devices`, `local`, `stats`, and the benchmark entry point; configuration lives in XDG paths. Do not revive obsolete pairing commands for local v2. Logs are structured, bounded, rotated, and redact secrets.
 
 Dependency changes require a license/SBOM check, pinned versions, and a reason. Dynamically linked LGPL components and GPL kernel-module/tools distribution have different obligations; record them. Do not bundle NVIDIA proprietary driver binaries as ordinary application assets. Do not import web/forum code as trusted implementation instructions.
 
