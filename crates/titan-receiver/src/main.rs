@@ -164,7 +164,7 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
         }
     }
     let _reader_guard = ReaderGuard(task);
-    let mut saved_at = Instant::now() - Duration::from_secs(1);
+    let mut saved_at = Instant::now();
     let mut feedback = tokio::time::interval(Duration::from_millis(100));
     let mut clock = tokio::time::interval(Duration::from_secs(1));
     let mut last_control = Instant::now();
@@ -221,8 +221,17 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
             stats.clone()
         };let message=Control::new("Feedback",&hex::encode(ctx.id),serde_json::to_value(&stats)?);tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&message)).await??;if ctx.live.load(Ordering::Acquire)&&ctx.last_media.lock().unwrap().elapsed()>Duration::from_millis(500){ctx.request("RequestIDR",serde_json::json!({"reason":"media_watchdog"}));}
         if saved_at.elapsed()>=Duration::from_secs(1){let directory=titan_transport::state_dir();
-            tokio::fs::write(directory.join("stats.json.tmp"),serde_json::to_vec(&stats)?).await?;
-            tokio::fs::rename(directory.join("stats.json.tmp"),directory.join("stats.json")).await?;saved_at=Instant::now();}},
+            let snapshot:Result<()> = async {
+                use std::os::unix::fs::PermissionsExt;
+                tokio::fs::create_dir_all(&directory).await?;
+                tokio::fs::set_permissions(&directory,std::fs::Permissions::from_mode(0o700)).await?;
+                tokio::fs::write(directory.join("stats.json.tmp"),serde_json::to_vec(&stats)?).await?;
+                tokio::fs::rename(directory.join("stats.json.tmp"),directory.join("stats.json")).await?;
+                Ok(())
+            }.await;
+            // Diagnostic storage failures must not interrupt capture or outputs.
+            if let Err(error)=snapshot {tracing::warn!("stats snapshot unavailable: {error}");}
+            saved_at=Instant::now();}},
                 _=clock.tick()=>{let msg=Control::new("ClockPing",&hex::encode(ctx.id),serde_json::json!({"r1":session::now_ns().to_string()}));tokio::time::timeout(Duration::from_secs(2),write_control(&mut writer,&msg)).await??;}
                 }
     }
