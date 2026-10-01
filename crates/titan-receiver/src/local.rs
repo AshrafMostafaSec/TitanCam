@@ -99,6 +99,14 @@ async fn negotiate<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     slots: Arc<Semaphore>,
     hub: Arc<crate::control_api::Hub>,
 ) -> Result<(Arc<Context>, Split<S>)> {
+    let usb = cfg.audio_codec == "pcm";
+    let mut cfg = hub.desired.lock().unwrap().clone();
+    cfg.config_id = 1;
+    cfg.audio_codec = if usb { "pcm" } else { "opus" }.into();
+    if usb {
+        cfg.audio_packet_ms = 5;
+        cfg.playout_ms = 35;
+    }
     let permit = slots
         .try_acquire_owned()
         .context("receiver busy with another session")?;

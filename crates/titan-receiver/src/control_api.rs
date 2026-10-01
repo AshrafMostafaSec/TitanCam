@@ -138,7 +138,10 @@ impl Hub {
                 "SetProfile" => {
                     let name = request.body["profile"].as_str().unwrap_or("");
                     ensure!(["saver", "balanced", "maximum"].contains(&name), "unknown profile");
-                    let cfg = StreamConfig::profile(name, false);
+                    let mut cfg = StreamConfig::profile(name, false);
+                    if self.context().is_some_and(|ctx| ctx.config.lock().unwrap().codec == "hevc") {
+                        cfg.bitrate = match name { "saver"=>3_000_000,"maximum"=>40_000_000,_=>9_000_000 };
+                    }
                     self.configure(serde_json::json!({"profile":name,"width":cfg.width,"height":cfg.height,"fps":cfg.fps,"bitrate":cfg.bitrate,"playout_ms":cfg.playout_ms})).await
                 }
                 "SetAudio" => {

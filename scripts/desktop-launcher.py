@@ -37,6 +37,7 @@ class Application(Gtk.Application):
         self.formats = []
         self.capture_config = {}
         self.connected = False
+        self.current_address = None
         self.config_pending = False
         self.gain_timer = None
         self.connect('activate', self.activate)
@@ -168,7 +169,10 @@ class Application(Gtk.Application):
         fmt = self.formats[self.format.get_selected()]
         microphone = self.microphones[self.microphone.get_selected()]
         source = self.sources[self.source.get_selected()] if self.sources else None
-        self.command('SetConfig', dict(fmt, camera_id=camera['id'], audio_input_id=microphone['id'], audio_data_source=source['id'] if source else None, codec=['h264', 'hevc'][self.codec.get_selected()]), capture=True)
+        codec = ['h264', 'hevc'][self.codec.get_selected()]
+        profile = self.capture_config.get('profile', 'balanced')
+        rates = {'saver':3000000,'balanced':9000000,'maximum':40000000} if codec == 'hevc' else {'saver':4000000,'balanced':14000000,'maximum':65000000}
+        self.command('SetConfig', dict(fmt, camera_id=camera['id'], audio_input_id=microphone['id'], audio_data_source=source['id'] if source else None, codec=codec, bitrate=rates.get(profile,9000000)), capture=True)
 
     @staticmethod
     def dropdown(widget, labels):
@@ -218,8 +222,18 @@ class Application(Gtk.Application):
                 data = _control.request('GetStatus')
             except (OSError, ValueError):
                 data = None
+            address = self.local_address()
+            GLib.idle_add(self.apply_address, generation, address)
             GLib.idle_add(self.apply_status, generation, data)
         threading.Thread(target=worker, daemon=True).start()
+
+    def apply_address(self, generation, address):
+        if generation != self.generation:
+            return False
+        self.current_address = address
+        if self.process and self.process.poll() is None and address != self.active_address:
+            self.start()
+        return False
 
     def apply_status(self, generation, data):
         self.poll_pending = False
@@ -229,7 +243,7 @@ class Application(Gtk.Application):
         self.capture_apply.set_sensitive(self.connected and not self.config_pending)
         self.capture_config = data.get('config', {})
         cap = data.get('capabilities', {})
-        key = json.dumps(cap, sort_keys=True) + str(data.get('session'))
+        key = json.dumps(cap, sort_keys=True) + str(data.get('session')) + str(self.capture_config.get('config_id'))
         if key != self.capability_key:
             self.capability_key = key
             self.cameras = cap.get('cameras', []); self.microphones = cap.get('audio_inputs', [])
@@ -239,8 +253,12 @@ class Application(Gtk.Application):
             self.camera.set_selected(next((i for i, c in enumerate(self.cameras) if c['id'] == self.capture_config.get('camera_id')), 0))
             self.microphone.set_selected(next((i for i, m in enumerate(self.microphones) if m['id'] == self.capture_config.get('audio_input_id')), 0))
             self.codec.set_selected(1 if self.capture_config.get('codec') == 'hevc' else 0)
+            self.profile.set_selected({'saver':0,'balanced':1,'maximum':2}.get(self.capture_config.get('profile'),1))
             self.syncing = False
             self.camera_changed(); self.microphone_changed()
+        if not self.connected:
+            self.status.set_text('الكمبيوتر جاهز — في انتظار الآيفون')
+            self.metrics.set_text(''); self.gpu.set_text('')
         if self.connected:
             cfg = self.capture_config
             stats = data.get('stats', {})
@@ -266,7 +284,7 @@ class Application(Gtk.Application):
 
     def start(self, *_):
         profile = ['saver', 'balanced', 'maximum'][self.profile.get_selected()]
-        address = self.local_address()
+        address = self.current_address
         # USB remains usable even when no Wi-Fi network is available.
         args = [os.environ.get('TITANCAM_RECEIVER', '/usr/bin/titan-receiver'), 'local', '--bind', '0.0.0.0']
         if address:
@@ -364,30 +382,10 @@ class Application(Gtk.Application):
     def refresh(self):
         if self.process and self.process.poll() is None:
             self.poll_status()
-            address = self.local_address()
-            if address != self.active_address:
-                self.start()
-                return True
-            path = STATE / 'stats.json'
-            try:
-                if path.stat().st_mtime >= self.started and time.time() - path.stat().st_mtime < 2.5 and path.stat().st_size < 65536:
-                    data = json.loads(path.read_text())
-                    video, audio = data.get('video', 0), data.get('audio', 0)
-                    if video and not self.gpu_pending and time.monotonic() - self.gpu_at >= 5:
-                        self.gpu_at = time.monotonic()
-                        self.gpu_pending = True
-                        threading.Thread(target=self.query_gpu, daemon=True).start()
-                    if video and audio:
-                        self.status.set_text('الصورة والصوت يصلان من الهاتف — ' + str(data.get('profile', '')))
-                    decoder = str(data.get("decoder", ""))
-                    device = "الاستقبال على NVIDIA GPU" if decoder.startswith("nv") else "الاستقبال على CPU مؤقتًا"
-                    self.metrics.set_text(device + f"\nفريمات الفيديو: {video} · حزم الصوت: {audio}\nDecoder: {data.get('decoder', '—')} · dropped: {data.get('dropped', 0)}")
-            except (OSError, ValueError):
-                pass
-            if not path.exists() or time.time() - path.stat().st_mtime > 2.5:
-                self.status.set_text('الكمبيوتر جاهز — في انتظار اتصال الآيفون')
-                self.metrics.set_text('')
-                self.gpu.set_text('')
+            if self.connected and not self.gpu_pending and time.monotonic() - self.gpu_at >= 5:
+                self.gpu_at = time.monotonic(); self.gpu_pending = True
+                threading.Thread(target=self.query_gpu, daemon=True).start()
         return True
 
-Application().run(None)
+if __name__ == '__main__':
+    Application().run(None)

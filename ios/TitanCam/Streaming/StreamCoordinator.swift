@@ -270,7 +270,7 @@ final class StreamCoordinator {
         if thermal == .critical { fail("Phone is too hot. Let it cool, then reconnect.", retry: false); return }
         var next = current
         if thermal == .serious { next.fps = min(next.fps, 30); next.bitrate = min(next.bitrate, 14_000_000); if next.width > 1920 { next.width = 1920; next.height = 1080 } }
-        else if expired > lastExpired || (!usb && (missing > lastMissing || late > lastLate || rtt > 40)) { stableSince = now; next.bitrate = max(2_000_000, Int(Double(next.bitrate) * 0.8)) }
+        else if expired > lastExpired || (datagrams != nil && (missing > lastMissing || late > lastLate || rtt > 40)) { stableSince = now; next.bitrate = max(2_000_000, Int(Double(next.bitrate) * 0.8)) }
         else if now - stableSince > 5_000_000_000 && frames > lastVideo { next.bitrate = min(requestedBitrate, Int(Double(next.bitrate) * 1.05)); stableSince = now }
         guard next != current, let sid = Data(hex: session) else { return }
         let formatChanged = !next.sameMediaFormat(as: current)
