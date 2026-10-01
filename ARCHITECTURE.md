@@ -1,4 +1,4 @@
-# TitanCam 0.2.0 — local sender and Linux receiver
+# TitanCam 0.2.1 — local sender and Linux receiver
 
 Updated 2026-10-01. Companion contract: [AGENTS.md](AGENTS.md). The owner explicitly requested a simpler trusted-LAN application without authentication, encryption, pairing forms or an iPhone preview. This specification governs implementation; [original research](docs/architecture-original-research.md) retains the earlier sources and experimental design. Transport v2 deliberately supersedes the encrypted alpha.1 application. Install matching new builds on both ends.
 
@@ -101,6 +101,24 @@ Authoritative bitrate/audio/playout starting values live in `StreamConfig::profi
 Initial **unverified glass-to-glass goals** at 1080p60 with good lighting, low-load host, 60+ Hz display: USB p50 45–80 ms / p95 ≤120 ms; healthy local Wi-Fi p50 60–110 ms / p95 ≤160 ms. Saver 30 FPS naturally adds frame-period delay. These are engineering acceptance targets, not measured results or literal zero latency. Measure capture/encode/transport/decode/display separately and report downstream OBS/browser delay separately. Internal clock RTT is not glass-to-glass latency.
 
 Qualify ten-minute USB and Wi-Fi sessions, then 60-minute profile runs; report p50/p95/p99, effective FPS, freeze/drop/late rates, A/V skew, CPU/RSS/GPU decode/power, phone thermal state and battery/charging context. Use a filmed physical flashing LED plus corresponding acoustic click, with exposure/refresh/error bars documented. Test cable pull, phone background, restart, AP outage, denied permissions, source/output failure and busy-session races. Target A/V skew p95 ≤30 ms under healthy conditions; investigate drift over sustained runs. Synthetic protocol/media tests do not establish these hardware targets.
+
+## Camera HDR configuration crash correction (0.2.1)
+
+The installed 0.2.0 build 3 crashed during initial Configure when AVFoundation rejected
+`setVideoHDREnabled:` on the capture queue. Five privately retrieved physical-phone
+crash reports shared that exception backtrace. These files stay local and are not
+release/CI assets. Swift `do/catch` cannot catch this Objective-C exception.
+
+Within the existing session transaction and device configuration lock, select the
+format/frame duration, set `automaticallyAdjustsVideoHDREnabled = false`, then disable
+`isVideoHDREnabled` only if currently enabled. The SDR pipeline must follow this order
+every time, including reconnect and adaptive reconfiguration. Release the device lock
+with `defer`. Do not suppress an exception or remove capture as a workaround.
+`VideoHDRPolicyTests` models the documented setter precondition, including automatic
+HDR initially enabled and repeated/already-SDR configuration. Cloud simulators cannot
+validate camera hardware; the new signed phone build still needs physical retesting.
+[Apple HDR property documentation](https://developer.apple.com/documentation/avfoundation/avcapturedevice/isvideohdrenabled),
+[Apple camera configuration note](https://developer.apple.com/library/archive/technotes/tn2409/_index.html).
 
 ## Builds, packaging and installation
 

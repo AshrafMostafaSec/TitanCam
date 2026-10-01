@@ -39,7 +39,7 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
                 if let connection = video.connection(with: .video) { connection.videoOrientation = .landscapeRight; if connection.isVideoStabilizationSupported { connection.preferredVideoStabilizationMode = .off } }
                 let audio = AVCaptureAudioDataOutput(); audio.setSampleBufferDelegate(self, queue: self.audioQueue); guard self.session.canAddOutput(audio) else { throw CameraError.unavailable("Audio output unavailable") }; self.session.addOutput(audio); self.configured = true
             }
-            try device.lockForConfiguration(); device.activeFormat = format; device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(config.fps)); device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(config.fps)); if device.isVideoHDREnabled { device.isVideoHDREnabled = false }; device.unlockForConfiguration()
+            try self.configureDevice(device, format: format, fps: config.fps)
             let audioSession = AVAudioSession.sharedInstance(); try audioSession.setCategory(.record, mode: .measurement); try audioSession.setPreferredSampleRate(48_000); try audioSession.setPreferredIOBufferDuration(0.005); try audioSession.setActive(true)
             guard abs(audioSession.sampleRate - 48_000) < 1 else { throw CameraError.unavailable("This audio route needs a 48 kHz converter; choose the built-in microphone.") }
             config.audio_channels = 1 // Actual mono route is reported; never label duplicated mono as stereo.
@@ -47,6 +47,14 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             self.effective = config; if !running { self.epoch = Self.hostTime }; completion(.success(config))
             // Resume only after the receiver acknowledges the new configuration.
         } catch { completion(.failure(error)) } }
+    }
+    private func configureDevice(_ device: AVCaptureDevice, format: AVCaptureDevice.Format, fps: Int) throws {
+        try device.lockForConfiguration()
+        defer { device.unlockForConfiguration() }
+        device.activeFormat = format
+        device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
+        device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
+        VideoHDRPolicy.applySDR(to: device)
     }
     func start() { queue.async { self.session.startRunning() } }
     func stop() { queue.async { if self.session.isRunning { self.session.stopRunning() }; self.encoder.stop(); try? AVAudioSession.sharedInstance().setActive(false) } }

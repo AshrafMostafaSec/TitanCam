@@ -8,7 +8,9 @@ NVDEC decodes once; webcam uses native-size NV12 and optional GL preview is boun
 
 Verification is recorded in Actions and the release notes. Unit/synthetic/simulator
 checks are not a real camera test. Install the matching new IPA through local iLoader
-before attempting to connect; alpha.1 is incompatible.
+before attempting to connect; 0.1.x is incompatible.
+0.2.1 fixes the HDR-setter camera configuration crash observed on 0.2.0 build 3.
+The transport remains v2 and is compatible with the 0.2.0 Linux receiver.
 
 Required hardware qualification:
 1. Confirm actual phone capture, hardware encode and effective saver format.

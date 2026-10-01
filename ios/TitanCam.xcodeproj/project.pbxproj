@@ -22,6 +22,8 @@
 		CC349D380504A3C39CD0C082 /* OpusBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = BE76869FB8D62921E701E9E6 /* OpusBridge.c */; };
 		F846EE82B8DF02E952B57ED3 /* Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D770EFE1F4A252B80822AC9 /* Connections.swift */; };
 ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC020000000000000000002 /* ReceiverDiscovery.swift */; };
+		ABC021000000000000000001 /* VideoHDRPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC021000000000000000002 /* VideoHDRPolicy.swift */; };
+		ABC021000000000000000003 /* VideoHDRPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC021000000000000000004 /* VideoHDRPolicyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +58,8 @@ ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBu
 		E8414700934BCB25DEAD7168 /* DatagramSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatagramSender.swift; sourceTree = "<group>"; };
 		EAF29A9C2DBDE41DF0FCF6DF /* Opus.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Opus.xcframework; path = ../build/Opus.xcframework; sourceTree = "<group>"; };
 ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDiscovery.swift; sourceTree = "<group>"; };
+		ABC021000000000000000002 /* VideoHDRPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicy.swift; sourceTree = "<group>"; };
+		ABC021000000000000000004 /* VideoHDRPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +82,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				BE76869FB8D62921E701E9E6 /* OpusBridge.c */,
 				D5F945670A515CE3EC5B0576 /* OpusBridge.h */,
 				B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */,
+				ABC021000000000000000002 /* VideoHDRPolicy.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -95,6 +100,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			children = (
 				3D3794F46CF93AFC94840CA5 /* .gitkeep */,
 				DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */,
+				ABC021000000000000000004 /* VideoHDRPolicyTests.swift */,
 			);
 			path = TitanCamTests;
 			sourceTree = "<group>";
@@ -284,6 +290,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			buildActionMask = 2147483647;
 			files = (
 				7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */,
+				ABC021000000000000000003 /* VideoHDRPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -302,6 +309,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
  ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */,
 				30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */,
 				5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */,
+				ABC021000000000000000001 /* VideoHDRPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -350,7 +358,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -370,7 +378,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.2.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -477,7 +485,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -491,7 +499,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.2.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ashrafmostafasec.titancam;
