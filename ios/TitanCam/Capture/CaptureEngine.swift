@@ -44,6 +44,8 @@ final class CaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             guard abs(audioSession.sampleRate - 48_000) < 1 else { throw CameraError.unavailable("This audio route needs a 48 kHz converter; choose the built-in microphone.") }
             config.audio_channels = 1 // Actual mono route is reported; never label duplicated mono as stereo.
             try self.encoder.queue.sync { try self.encoder.configure(config, session: sessionID) }; try self.audioQueue.sync { try self.audio.configure(config, session: sessionID) }
+            config.encoder_hardware_evidence = self.encoder.hardwareEvidence
+            config.encoder_hardware_query_status = Int(self.encoder.hardwareQueryStatus)
             self.effective = config; if !running { self.epoch = Self.hostTime }; completion(.success(config))
             // Resume only after the receiver acknowledges the new configuration.
         } catch { completion(.failure(error)) } }

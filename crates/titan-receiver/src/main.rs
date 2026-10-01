@@ -13,7 +13,7 @@ use titan_protocol::{Control, StreamConfig};
 use titan_transport::{read_control, write_control};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
-    net::TcpStream,
+    net::UnixStream,
     sync::mpsc,
 };
 #[derive(Parser)]
@@ -172,12 +172,39 @@ async fn control_session<R: AsyncRead + Unpin + Send + 'static, W: AsyncWrite + 
     ctx.live.store(false, Ordering::Release);
     Ok(())
 }
-async fn usb_tcp(device: &str, port: u16) -> Result<TcpStream> {
+async fn usb_stream(device: &str, port: u16) -> Result<UnixStream> {
     let d = device.to_string();
     let owned: OwnedFd =
         tokio::task::spawn_blocking(move || titan_usb::connect(&d, port)).await??;
-    let stream = std::net::TcpStream::from(owned);
+    usb_stream_from_fd(owned)
+}
+fn usb_stream_from_fd(owned: OwnedFd) -> Result<UnixStream> {
+    // libusbmuxd's local daemon connection is AF_UNIX. The device-side TCP
+    // tunnel does not make this descriptor a TCP socket; TCP_NODELAY fails.
+    let stream = std::os::unix::net::UnixStream::from(owned);
     stream.set_nonblocking(true)?;
-    stream.set_nodelay(true)?;
-    Ok(TcpStream::from_std(stream)?)
+    Ok(UnixStream::from_std(stream)?)
+}
+
+#[cfg(test)]
+mod usb_adapter_tests {
+    use super::*;
+    #[tokio::test]
+    async fn unix_daemon_fd_transfers_framed_control_without_tcp_socket_options() {
+        let (client, server) = std::os::unix::net::UnixStream::pair().unwrap();
+        let mut client = usb_stream_from_fd(client.into()).unwrap();
+        let mut server = usb_stream_from_fd(server.into()).unwrap();
+        let message = Control::new(
+            "Hello",
+            &"11".repeat(16),
+            serde_json::json!({"transport_version": 2}),
+        );
+        write_control(&mut server, &message).await.unwrap();
+        let received = tokio::time::timeout(Duration::from_secs(1), read_control(&mut client))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(received.kind, "Hello");
+        assert_eq!(received.body["transport_version"], 2);
+    }
 }

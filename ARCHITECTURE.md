@@ -1,4 +1,4 @@
-# TitanCam 0.2.1 — local sender and Linux receiver
+# TitanCam 0.2.2 — local sender and Linux receiver
 
 Updated 2026-10-01. Companion contract: [AGENTS.md](AGENTS.md). The owner explicitly requested a simpler trusted-LAN application without authentication, encryption, pairing forms or an iPhone preview. This specification governs implementation; [original research](docs/architecture-original-research.md) retains the earlier sources and experimental design. Transport v2 deliberately supersedes the encrypted alpha.1 application. Install matching new builds on both ends.
 
@@ -129,3 +129,32 @@ iOS builds on GitHub-hosted macOS 15 + Xcode 16.4 using pinned XcodeGen and Opus
 Default distribution is an explicitly **unsigned IPA for local re-signing**. The user's local iLoader performs final signing/provisioning/install with Apple credentials remaining local. Valid Apple signing, compatible bundle ID/entitlements, provisioning, device trust, expiry and Developer Mode where required still apply. If a signed Actions route is later requested, use protected certificate/profile secrets, ephemeral keychain, cleanup, and never expose secrets to PR/fork code. Current workflow requires no Apple secrets and does not install onto the user's phone automatically.
 
 Publish only a development prerelease until physical acceptance passes. Verify release asset hashes, successful exact-source builds, correct Ubuntu ABI, installed binary/GUI version, package dependencies and live Pages link. Do not upload phone identifiers, camera/audio, credentials or local diagnostic secrets. See [build/signing](docs/BUILD_AND_SIGNING.md), [status](docs/NEXT_STEPS.md) and [README](README.md).
+
+## USB adapter and hardware encoder correction (0.2.2)
+
+The local libusbmuxd descriptor is a Unix-domain socket to the daemon. The iPhone's
+remote TCP tunnel does not permit TCP_NODELAY on that local AF_UNIX descriptor.
+Wrap the owned descriptor as a nonblocking Tokio UnixStream for metadata/control/
+video/audio, with no TCP-specific socket options. A socket-pair regression exercises
+real async framed control through the same adapter. Phone USB enumeration and
+metadata were reached privately on the development laptop; completion of a real
+camera session still requires the updated iPhone app.
+
+Keep VideoToolbox RequireHardwareAcceleratedVideoEncoder=true. Prepare the session
+before querying UsingHardwareAcceleratedVideoEncoder. Inspect the query status and
+CFBoolean type/value. A supported false result, invalid non-Boolean value, or unexpected
+query error fails explicitly. If the optional query is unsupported or returns no value,
+successful mandatory-hardware creation plus preparation is the hardware evidence;
+there is no software-encoding fallback. Report `encoder_hardware_evidence` and
+`encoder_hardware_query_status` as optional ConfigureAck fields, and log the bounded
+setup diagnostic. Older v2 Linux receivers ignore those optional fields.
+[Apple mandatory-hardware contract](https://developer.apple.com/documentation/videotoolbox/kvtvideoencoderspecification_requirehardwareacceleratedvideoencoder),
+[optional encoder properties](https://developer.apple.com/documentation/videotoolbox/compression-properties),
+[resource preparation](https://developer.apple.com/documentation/videotoolbox/vtcompressionsessionpreparetoencodeframes(_:)).
+
+The Linux GUI distinguishes an installed writable virtual webcam from one receiving
+frames. With v4l2loopback exclusive_caps enabled, consumer capture capability appears
+while the producer is attached. The presence of /dev/video42 alone does not mean
+camera data is arriving. Keep normal-user access and the existing one-decode pipeline.
+
+[libusbmuxd daemon connection implementation](https://github.com/libimobiledevice/libusbmuxd/blob/master/src/libusbmuxd.c), [v4l2loopback exclusive capabilities](https://github.com/v4l2loopback/v4l2loopback#options).

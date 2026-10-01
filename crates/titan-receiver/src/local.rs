@@ -38,7 +38,7 @@ impl Bootstrap {
 async fn probe(device: &str) -> Result<Bootstrap> {
     for base in BASES {
         let result: Result<Bootstrap> = async {
-            let stream = super::usb_tcp(device, base - 1).await?;
+            let stream = super::usb_stream(device, base - 1).await?;
             let mut bytes = Vec::new();
             stream.take(257).read_to_end(&mut bytes).await?;
             Bootstrap::parse(&bytes, base)
@@ -256,10 +256,10 @@ async fn usb_session(
     slots: Arc<Semaphore>,
 ) -> Result<()> {
     let (ctx, commands) =
-        negotiate(super::usb_tcp(device, base).await?, cfg, outputs, slots).await?;
+        negotiate(super::usb_stream(device, base).await?, cfg, outputs, slots).await?;
     let _lease = session::Lease(Some(ctx.clone()));
     for (port, role) in [(base + 1, "video"), (base + 2, "audio")] {
-        let mut media = super::usb_tcp(device, port).await?;
+        let mut media = super::usb_stream(device, port).await?;
         write_control(
             &mut media,
             &Control::new(
@@ -319,7 +319,7 @@ async fn usb_monitor(cfg: StreamConfig, outputs: OutputOptions, slots: Arc<Semap
                     )
                     .await
                     {
-                        tracing::debug!("USB session ended: {e}");
+                        tracing::warn!("USB session ended: {e}");
                     }
                     break;
                 }

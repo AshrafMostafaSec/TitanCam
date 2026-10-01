@@ -12,6 +12,8 @@ final class VideoEncoder {
     private var lastIDR: UInt64 = 0
     private var config = StreamConfig()
     private var sessionID = Data()
+    private(set) var hardwareEvidence = ""
+    private(set) var hardwareQueryStatus: OSStatus = noErr
     let queue = DispatchQueue(label: "titancam.video", qos: .userInteractive)
     var output: ((EncodedUnit) -> Void)?
     var failure: ((String) -> Void)?
@@ -32,9 +34,11 @@ final class VideoEncoder {
             let result = VTSessionSetProperty(created, key: key, value: value as CFTypeRef); guard result == noErr else { throw CameraError.unavailable("Encoder setting rejected: \(key) (\(result))") }
         }
         if config.codec == "h264" { let status = VTSessionSetProperty(created, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_High_AutoLevel); guard status == noErr else { throw CameraError.unavailable("H.264 profile rejected (\(status))") } }
-        var hardware: CFTypeRef?; VTSessionCopyProperty(created, key: kVTCompressionPropertyKey_UsingHardwareAcceleratedVideoEncoder, allocator: nil, valueOut: &hardware)
-        guard hardware as? Bool == true else { throw CameraError.unavailable("Hardware encoding could not be confirmed") }
         guard VTCompressionSessionPrepareToEncodeFrames(created) == noErr else { throw CameraError.unavailable("Encoder preparation failed") }
+        var hardware: CFTypeRef?
+        hardwareQueryStatus = VTSessionCopyProperty(created, key: kVTCompressionPropertyKey_UsingHardwareAcceleratedVideoEncoder, allocator: nil, valueOut: &hardware)
+        hardwareEvidence = try HardwareEncoderPolicy.evidence(requiredHardware: true, queryStatus: hardwareQueryStatus, value: hardware)
+        NSLog("TitanCam encoder hardware evidence=%@ query_status=%d", hardwareEvidence, hardwareQueryStatus)
     }
     func encode(_ sample: CMSampleBuffer, pts: UInt64) {
         guard let encoder, let pixel = CMSampleBufferGetImageBuffer(sample) else { return }

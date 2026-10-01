@@ -24,6 +24,8 @@
 ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC020000000000000000002 /* ReceiverDiscovery.swift */; };
 		ABC021000000000000000001 /* VideoHDRPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC021000000000000000002 /* VideoHDRPolicy.swift */; };
 		ABC021000000000000000003 /* VideoHDRPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC021000000000000000004 /* VideoHDRPolicyTests.swift */; };
+		ABC022000000000000000001 /* HardwareEncoderPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC022000000000000000002 /* HardwareEncoderPolicy.swift */; };
+		ABC022000000000000000003 /* HardwareEncoderPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC022000000000000000004 /* HardwareEncoderPolicyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +62,8 @@ ABC020000000000000000001 /* ReceiverDiscovery.swift in Sources */ = {isa = PBXBu
 ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDiscovery.swift; sourceTree = "<group>"; };
 		ABC021000000000000000002 /* VideoHDRPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicy.swift; sourceTree = "<group>"; };
 		ABC021000000000000000004 /* VideoHDRPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHDRPolicyTests.swift; sourceTree = "<group>"; };
+		ABC022000000000000000002 /* HardwareEncoderPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareEncoderPolicy.swift; sourceTree = "<group>"; };
+		ABC022000000000000000004 /* HardwareEncoderPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareEncoderPolicyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +87,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				D5F945670A515CE3EC5B0576 /* OpusBridge.h */,
 				B99BEED33E97B93E17D8FB09 /* VideoEncoder.swift */,
 				ABC021000000000000000002 /* VideoHDRPolicy.swift */,
+				ABC022000000000000000002 /* HardwareEncoderPolicy.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -101,6 +106,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				3D3794F46CF93AFC94840CA5 /* .gitkeep */,
 				DF380578F8ED0CD59B997ACE /* ProtocolTests.swift */,
 				ABC021000000000000000004 /* VideoHDRPolicyTests.swift */,
+				ABC022000000000000000004 /* HardwareEncoderPolicyTests.swift */,
 			);
 			path = TitanCamTests;
 			sourceTree = "<group>";
@@ -291,6 +297,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 			files = (
 				7D6327C6D54B4A5D160FD7DF /* ProtocolTests.swift in Sources */,
 				ABC021000000000000000003 /* VideoHDRPolicyTests.swift in Sources */,
+				ABC022000000000000000003 /* HardwareEncoderPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -310,6 +317,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				30EC9A7838F1F55B7E226025 /* TitanCamApp.swift in Sources */,
 				5FC3C1DEB19D60171138062A /* VideoEncoder.swift in Sources */,
 				ABC021000000000000000001 /* VideoHDRPolicy.swift in Sources */,
+				ABC022000000000000000001 /* HardwareEncoderPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -358,7 +366,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -378,7 +386,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.2.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -485,7 +493,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -499,7 +507,7 @@ ABC020000000000000000002 /* ReceiverDiscovery.swift */ = {isa = PBXFileReference
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../build/opus-headers";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.2.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ashrafmostafasec.titancam;

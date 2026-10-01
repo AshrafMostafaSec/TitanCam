@@ -62,6 +62,8 @@ class Application(Gtk.Application):
         self.webcam.set_active(Path('/dev/video42').exists())
         box.append(self.preview)
         box.append(self.webcam)
+        webcam_ready = os.access('/dev/video42', os.W_OK)
+        box.append(Gtk.Label(label='الكاميرا الافتراضية جاهزة — تظهر في برامج الكاميرا عند بدء وصول الفيديو.' if webcam_ready else 'الكاميرا الافتراضية غير جاهزة؛ يمكنك استقبال الصورة بدونها.', xalign=0, wrap=True))
         buttons = Gtk.Box(spacing=10)
         self.start_button = Gtk.Button(label='تشغيل / تطبيق الإعدادات')
         self.start_button.add_css_class('suggested-action')

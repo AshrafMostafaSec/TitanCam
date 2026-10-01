@@ -11,6 +11,8 @@ struct StreamConfig: Codable, Equatable {
     var audio_channels: Int = 1
     var audio_packet_ms: Int = 10
     var playout_ms: Int = 10
+    var encoder_hardware_evidence: String?
+    var encoder_hardware_query_status: Int?
     var valid: Bool { config_id > 0 && ["saver", "balanced", "maximum"].contains(profile) && (1...3840).contains(width) && (1...2160).contains(height) && (1...60).contains(fps) && (100_000...100_000_000).contains(bitrate) && ["h264", "hevc"].contains(codec) && ["pcm", "opus"].contains(audio_codec) && (1...2).contains(audio_channels) && [5, 10, 20].contains(audio_packet_ms) && (0...100).contains(playout_ms) }
 }
 struct ControlMessage {

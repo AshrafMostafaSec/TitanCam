@@ -23,7 +23,7 @@ cargo run --locked -p titan-receiver -- doctor --decode --microphone
 ```
 
 Dependency setup uses sudo in your terminal. The receiver runs as your normal user.
-For a release package use `sudo apt install ./titancam_0.2.1_ubuntu26.04_amd64.deb`
+For a release package use `sudo apt install ./titancam_0.2.2_ubuntu26.04_amd64.deb`
 (on Ubuntu 24.04 select the corresponding `ubuntu24.04` package). NVIDIA drivers,
 usbmuxd/device trust and v4l2loopback are separate host dependencies.
 
