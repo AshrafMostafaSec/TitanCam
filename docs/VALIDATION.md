@@ -1,5 +1,10 @@
 # Validation evidence — development preview, 2026-10-01
 
+Historical pre-v2 encrypted transport evidence below is retained for reference.
+Current 0.2.x uses plain TCP/UDP; current exact-source checks and physical retest
+status are listed in each release's validation notes and Actions runs. These older
+encrypted checks do not validate the current transport.
+
 These checks are build/synthetic evidence, not physical-iPhone qualification.
 
 | Check | Result / scope |
